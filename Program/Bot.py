@@ -8,6 +8,8 @@ import json
 import Interpret
 import Database as db
 from dotenv import load_dotenv, dotenv_values 
+import urllib.request
+import uuid
 
 load_dotenv() 
 
@@ -34,13 +36,60 @@ client = commands.Bot(command_prefix='!', intents=discord.Intents.all())
 
 @client.event
 async def on_ready():
+    await db.createRepository()
     print("Online")
     synced = await client.tree.sync()
     print(len(synced))
+    
+
+#Save the image and return the path of the image
+def saveImage(url):
+    path="Images/"+str(uuid.uuid4())
+    urllib.request.urlretrieve(url, path)
+    return path
+
+#Remove a tag, name is the name of the tag
+@client.tree.command(name="remove_tag", description="Remove a tag from the database")
+@app_commands.describe(name="The name of the tag you want to display")
+async def tag_image(interaction:discord.Interaction, name:str):
+    data = await db.getTag(name)
+    if (data==None):
+        await interaction.response.send_message("Error, tag was not found", ephemeral=True)
+    elif (data[db.LabelIndex.user_id.value]!=interaction.user.id):
+        await interaction.response.send_message("Error, you did not create the tag", ephemeral=True)
+    else:
+        await db.deleteTag(name)
+        await interaction.response.send_message("Tag deleted", ephemeral=True)        
+
+#Slash command to only output image from tag database, name is name of tag
+@client.tree.command(name="tag_image", description="Display the image relating to a tag")
+@app_commands.describe(name="The name of the tag you want to display")
+async def tag_image(interaction:discord.Interaction, name:str):
+    data = await db.getTag(name)
+    if (data==None):
+        await interaction.response.send_message("Error, tag was not found", ephemeral=True)
+    else:
+        image = data[db.LabelIndex.label_image_path.value]
+        if (image==""):
+            await interaction.response.send_message("Error, tag has no text", ephemeral=True)
+        else:
+            await interaction.response.send_message(image)
 
 
-
-
+#Slash command to only output text from tag database, name is name of tag
+@client.tree.command(name="tag_text", description="Display the text relating to a tag")
+@app_commands.describe(name="The name of the tag you want to display")
+async def tag_text(interaction:discord.Interaction, name:str):
+    data = await db.getTag(name)
+    if (data==None):
+        await interaction.response.send_message("Error, tag was not found", ephemeral=True)
+    else:
+        text = data[db.LabelIndex.label_text.value]
+        if (text==""):
+            await interaction.response.send_message("Error, tag has no text", ephemeral=True)
+        else:
+            await interaction.response.send_message(text)
+        
 #Slash command to output text and image from tag database, name is name of tag
 @client.tree.command(name="tag", description="Display the information relating to a tag")
 @app_commands.describe(name="The name of the tag you want to display")
@@ -53,10 +102,33 @@ async def tag(interaction:discord.Interaction, name:str):
         image = data[db.LabelIndex.label_image_path.value]
         await interaction.response.send_message(text +" "+image)
     
+    
+#Update a tag, assume any missing arugments are to be ignored
+@client.command()
+async def updateTag(ctx, *args):
+    if (not ctx.message.author.bot):       
+        attachement = ctx.message.attachments
+        
+        if (len(args)==0):
+            await ctx.send("Arguments missing please use the following format of \'!createTag name text\' and then attach and image. Text and attachment are optional")
+            return
+        data = await db.getTag(args[0])
+        if (data[db.LabelIndex.user_id.value]!=ctx.author.id):
+            await ctx.send("Error, you did not create the tag")
+        else:
+            name = args[0]
+            args = args[1:]
+            if (len(attachement)>0):
+                attachement = attachement[0]
+            else:
+                attachement = ""
+            result = await db.updateTag(ctx.author.id, name, " ".join(str(word) for word in args), str(attachement))
+            await ctx.send(result)
+    
 #Create a tag, excepts discord.py context and list of string arugments
 @client.command()
 async def createTag(ctx, *args):
-    if (not ctx.message.author.bot):       
+     if (not ctx.message.author.bot):       
         attachement = ctx.message.attachments
         if (len(args)==0):
             await ctx.send("Arguments missing please use the following format of \'!createTag name text\' and then attach and image. Text and attachment are optional")
