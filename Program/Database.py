@@ -30,7 +30,7 @@ global_cursor = global_connection.cursor()
 cooldown = 1
 
 #Wether or not to bypass cooldown
-cooldown_bypass = True
+cooldown_bypass = False
 
 #Formate for dates
 format = "%Y-%d-%m"
