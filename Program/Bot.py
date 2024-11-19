@@ -10,7 +10,7 @@ import Database as db
 from dotenv import load_dotenv, dotenv_values 
 import urllib.request
 import uuid
-from Bot_Ui import edit_menu
+from Bot_Ui import back_button, blackJackHitButton, blackJackStayButton, edit_menu
 from Bot_Ui import edit_quest
 from Bot_Ui import edit_daily
 from Bot_Ui import edit_stock_market_view_and_embed
@@ -20,6 +20,8 @@ from discord.ui import View
 from discord import app_commands
 import yfinance as yf
 import asyncio
+import Minigame
+from Minigame import blackJack
 
 
 load_dotenv() 
@@ -408,5 +410,22 @@ async def outputtotxt(interaction: discord.Interaction):
     for filePath in files:
         await interaction.channel.send(file=discord.File(filePath))
     currentlyProcessing = False
+
+@client.tree.command(name="blackjack", description="Play a game of blackjack")
+@app_commands.describe(bet="The amount you want to be must be >=0 and <= the number of points you have, if the bet is out of range it goes to the default of 0")
+async def blackjack(interaction:discord.Interaction,bet:int=0):
+    points = await db.getPoints(interaction.user.id)
+    if (bet<0 or bet>points):
+        bet = 0
+    emded = discord.Embed(color=interaction.user.color, title="Blackjack but worse")
+    await db.updatePoints(interaction.user.id,bet*-1)
+    blackjack = blackJack()
+    emded.add_field(name="**Player Hand: "+str(blackjack.getPlayerHandValue())+"**", value=blackjack.stringPlayerHand, inline=False)
+    emded.add_field(name="**Dealer Hand: "+str(blackjack.getDealerHandValue())+"**", value=blackjack.stringDealerHand, inline=False)
+    view = View()
+    view.add_item(back_button(interaction))
+    view.add_item(blackJackHitButton(interaction, blackjack, bet))
+    view.add_item(blackJackStayButton(interaction, blackjack, bet))
+    await interaction.response.send_message(view=view, embed=emded)
 
 client.run(token)

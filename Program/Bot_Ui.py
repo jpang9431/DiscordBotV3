@@ -11,9 +11,13 @@ from discord.ui import View
 import random
 import yfinance as yf
 
+from Minigame import blackJack
+
 #List of quests and the quest dictionary from databse
 quests = db.quests
 quest_dict = db.quest_dict
+
+black_jack_payout = 1.5
 
 #Function to handle a back button 
 class back_button(discord.ui.Button):
@@ -43,6 +47,7 @@ async def edit_menu(view:discord.ui.View, embed:discord.Embed, user:discord.User
     view.add_item(daily_button(interaction))
     view.add_item(claim_quests_button(interaction, "Quest")) 
     view.add_item(refresh_stocks(interaction, "Stocks"))
+    view.add_item(playBlackJackButton(interaction,"Blackjack"))
     view.add_item(refresh_leaderboard(interaction, "Leader Board"))
     
 #Button to be able to claim quests
@@ -288,3 +293,79 @@ async def edit_leaderboard(view:discord.ui.View, embed:discord.Embed, user:disco
     view.add_item(refresh_leaderboard(interaction,"Refresh Leaderboard"))
     
 
+async def endBlackJackGame(orgInteraction:discord.Interaction, interaction:discord.Interaction, bet:int, blackjack:blackJack, text:str):
+    emded = discord.Embed(color=interaction.user.color, title="Blackjack but worse")
+    emded.add_field(name="", value=text, inline=False)
+    emded.add_field(name="**Player Hand: "+str(blackjack.getPlayerHandValue())+"**", value=blackjack.stringPlayerHand, inline=False)
+    emded.add_field(name="**Dealer Hand: "+str(blackjack.getDealerHandValue())+"**", value=blackjack.stringDealerHand, inline=False)
+    view = View()
+    view.add_item(back_button(orgInteraction))
+    view.add_item(playBlackJackButton(orgInteraction, "Play again bet "+str(bet), bet))
+    view.add_item(playBlackJackButton(orgInteraction, "Play again bet 0", 0))
+    await orgInteraction.edit_original_response(view=view,embed=emded)
+
+class playBlackJackButton(discord.ui.Button):
+    def __init__(self, interaction:discord.Interaction, label:str, bet=0):
+        super().__init__(label=label, style=discord.ButtonStyle.blurple)
+        self.interaction = interaction
+        self.bet = bet
+    async def callback(self,interaction):
+        points = await db.getPoints(interaction.user.id)
+        if (self.bet>points):
+            self.bet = 0
+        await db.updatePoints(interaction.user.id,self.bet*-1)
+        emded = discord.Embed(color=interaction.user.color, title="Blackjack but worse")
+        blackjack = blackJack()
+        emded.add_field(name="**Player Hand: "+str(blackjack.getPlayerHandValue())+"**", value=blackjack.stringPlayerHand, inline=False)
+        emded.add_field(name="**Dealer Hand: "+str(blackjack.getDealerHandValue())+"**", value=blackjack.stringDealerHand, inline=False)
+        view = View()
+        view.add_item(back_button(self.interaction))
+        view.add_item(blackJackHitButton(self.interaction, blackjack, self.bet))
+        view.add_item(blackJackStayButton(self.interaction, blackjack, self.bet))
+        await self.interaction.edit_original_response(view=view,embed=emded)
+        await interaction.response.defer()
+    
+class blackJackStayButton(discord.ui.Button):
+    def __init__(self, interaction:discord.Interaction, blackjack:blackJack, bet:int):    
+        super().__init__(label="Stay", style=discord.ButtonStyle.blurple)
+        self.bet = bet
+        self.blackjack = blackjack
+        self.interaction = interaction
+    async def callback(self,interaction):
+        if (self.interaction.user.id!=interaction.user.id):
+            await interaction.response.defer()
+            return
+        handValues = self.blackjack.stay()
+        if (handValues[1]>21):
+            await endBlackJackGame(self.interaction, interaction, self.bet, self.blackjack, "Dealer busted (went over 21). You win "+str(self.bet*1.5)+".")
+            await db.updatePoints(interaction.user.id, self.bet*black_jack_payout)
+        elif (handValues[1]<=handValues[0]):
+            await endBlackJackGame(self.interaction, interaction, self.bet, self.blackjack, "Dealer has a smaller hand value. You win "+str(self.bet*1.5)+".")
+            await db.updatePoints(interaction.user.id, self.bet*black_jack_payout)
+        else:
+            await endBlackJackGame(self.interaction, interaction, self.bet, self.blackjack, "You have a smaller hand value. You lose "+str(self.bet*1.5)+".")
+        await interaction.response.defer()
+        
+class blackJackHitButton(discord.ui.Button):
+    def __init__(self, interaction:discord.Interaction, blackjack:blackJack, bet:int):
+        super().__init__(label="Hit", style=discord.ButtonStyle.blurple)
+        self.bet = bet
+        self.blackjack = blackjack
+        self.interaction = interaction
+    async def callback(self,interaction):
+        if (self.interaction.user.id!=interaction.user.id):
+            await interaction.response.defer()
+            return
+        playerHandValue = self.blackjack.hit()
+        if (playerHandValue>21):
+            await endBlackJackGame(self.interaction, interaction, self.bet, self.blackjack, "You busted (went over 21). You lose "+str(self.bet)+".")
+        else:
+            emded = discord.Embed(color=interaction.user.color, title="Blackjack but worse")
+            emded.add_field(name="**Player Hand:"+str(self.blackjack.getPlayerHandValue())+"**", value=self.blackjack.stringPlayerHand, inline=False)
+            emded.add_field(name="**Dealer Hand:"+str(self.blackjack.getDealerHandValue())+"**", value=self.blackjack.stringDealerHand, inline=False)
+            view = View()
+            view.add_item(back_button(self.interaction))
+            view.add_item(blackJackHitButton(self.interaction, self.blackjack, self.bet))
+            view.add_item(blackJackStayButton(self.interaction, self.blackjack, self.bet))
+            await self.interaction.edit_original_response(view=view,embed=emded)
+        await interaction.response.defer()
