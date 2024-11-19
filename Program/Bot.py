@@ -10,7 +10,7 @@ import Database as db
 from dotenv import load_dotenv, dotenv_values 
 import urllib.request
 import uuid
-from Bot_Ui import back_button, blackJackHitButton, blackJackStayButton, edit_menu
+from Bot_Ui import back_button, blackjack_hit_button, blackjack_stay_button, edit_menu
 from Bot_Ui import edit_quest
 from Bot_Ui import edit_daily
 from Bot_Ui import edit_stock_market_view_and_embed
@@ -50,24 +50,24 @@ client = commands.Bot(command_prefix='!', intents=discord.Intents.all())
 #Set up the leaderboard to update at ceratin periods of time
 async def updateLeaderBoardInterval():
     while True:
-        await db.updateLeaderBoard()
+        await db.update_leader_board()
         await asyncio.sleep(3600)
         
 #Event trigger as soon as the program is run
 @client.event
 async def on_ready():
-    await db.createRepository()
+    await db.create_repository()
     print("Online")
     synced = await client.tree.sync()
     print(len(synced))
-    await db.updateLeaderBoard()
+    await db.update_leader_board()
     await updateLeaderBoardInterval()
     
 #Handle the bot being added to a new guild
 async def add_guild(guild):
     for user in guild.members:
         if not user.bot:
-            await db.insertNewUserIfNotExists(user.id, user.global_name)
+            await db.insert_new_user_if_no_exists(user.id, user.global_name)
             
 #Trigger adding all users in a guild
 @client.event
@@ -84,7 +84,7 @@ async def add_new_users(interaction:discord.Interaction):
 @client.tree.command(name="quest", description="Check/Claim quest progress and get new quests")
 async def quest(interaction:discord.Interaction):
     userId = interaction.user.id
-    await db.insertNewUserIfNotExists(userId, interaction.user.global_name)
+    await db.insert_new_user_if_no_exists(userId, interaction.user.global_name)
     user = interaction.user
     embed = discord.Embed(title=user.display_name, color = user.color)
     view = View()
@@ -95,7 +95,7 @@ async def quest(interaction:discord.Interaction):
 @client.tree.command(name="menu", description="View the menu of options")
 async def menu(interaction:discord.Interaction):
     userId = interaction.user.id
-    await db.insertNewUserIfNotExists(userId, interaction.user.global_name)
+    await db.insert_new_user_if_no_exists(userId, interaction.user.global_name)
     user = interaction.user
     embed = discord.Embed(title=user.display_name, color = user.color)
     view = View()
@@ -106,7 +106,7 @@ async def menu(interaction:discord.Interaction):
 @client.tree.command(name="daily", description="Claim daily reward")
 async def daily(interaction:discord.Interaction):
     user = interaction.user
-    await db.insertNewUserIfNotExists(user.id, interaction.user.global_name)
+    await db.insert_new_user_if_no_exists(user.id, interaction.user.global_name)
     embed = discord.Embed(title=user.display_name, color = user.color)
     view = View()
     await edit_daily(view, embed, user, interaction)
@@ -139,11 +139,11 @@ async def buy_stocks(interaction:discord.Interaction, ticker: str, amount: app_c
     user = interaction.user
     view = View()
     embed = discord.Embed(title=user.display_name, color = user.color)
-    points = await db.getPoints(user.id)
+    points = await db.get_points(user.id)
     stock_ticker_info = stock_ticker.info
     canAfford = points>=stock_ticker_info["ask"]*amount
     if (canAfford):
-        await db.updateStock(user.id, stock_ticker_info, "Buy", amount)
+        await db.update_stock(user.id, stock_ticker_info, "Buy", amount)
     await edit_stock_market_view_and_embed(view=view, embed=embed, ticker=ticker, user=user, interaction=interaction, amount=amount)
     if (canAfford):
             embed.add_field(name="Action Result", value="Sucessfully bought "+str(amount)+" of "+stock_ticker_info["shortName"], inline=False)
@@ -164,10 +164,10 @@ async def sell_stocks(interaction:discord.Interaction, ticker: str, amount: app_
     view = View()
     embed = discord.Embed(title=user.display_name, color = user.color)
     stock_ticker_info = stock_ticker.info
-    stock_ticker_amount = await db.getAmountOfStock(user.id, ticker)
+    stock_ticker_amount = await db.get_amount_of_stock(user.id, ticker)
     hasStocks = amount<=stock_ticker_amount
     if (hasStocks):
-        await db.updateStock(user.id, stock_ticker_info, "Sell", amount)
+        await db.update_stock(user.id, stock_ticker_info, "Sell", amount)
     await edit_stock_market_view_and_embed(view, embed, ticker, user, interaction, amount)
     if (hasStocks):
         embed.add_field(name="Action Result", value="Sucessfully sold "+str(amount)+" of "+stock_ticker_info["shortName"], inline=False)
@@ -188,7 +188,7 @@ async def owned_stocks(interaction:discord.Interaction):
 @client.tree.command(name="update_leaderboard", description="Refresh leaderboard")
 @app_commands.checks.has_permissions(administrator=True)
 async def update_leaderboard(interaction:discord.Interaction):
-    await db.updateLeaderBoard()
+    await db.update_leader_board()
     user = interaction.user
     view = View()
     embed = discord.Embed(title=user.display_name, color = user.color)
@@ -210,24 +210,24 @@ def saveImage(url):
 @client.tree.command(name="remove_tag", description="Remove a tag from the database")
 @app_commands.describe(name="The name of the tag you want to display")
 async def tag_image(interaction:discord.Interaction, name:str):
-    data = await db.getTag(name)
+    data = await db.get_tag(name)
     if (data==None):
         await interaction.response.send_message("Error, tag was not found", ephemeral=True)
-    elif (data[db.LabelIndex.user_id.value]!=interaction.user.id):
+    elif (data[db.label_index.user_id.value]!=interaction.user.id):
         await interaction.response.send_message("Error, you did not create the tag", ephemeral=True)
     else:
-        await db.deleteTag(name)
+        await db.delete_tag(name)
         await interaction.response.send_message("Tag deleted", ephemeral=True)        
 
 #Slash command to only output image from tag database, name is name of tag
 @client.tree.command(name="tag_image", description="Display the image relating to a tag")
 @app_commands.describe(name="The name of the tag you want to display")
 async def tag_image(interaction:discord.Interaction, name:str):
-    data = await db.getTag(name)
+    data = await db.get_tag(name)
     if (data==None):
         await interaction.response.send_message("Error, tag was not found", ephemeral=True)
     else:
-        image = data[db.LabelIndex.label_image_path.value]
+        image = data[db.label_index.label_image_path.value]
         if (image==""):
             await interaction.response.send_message("Error, tag has no text", ephemeral=True)
         else:
@@ -238,11 +238,11 @@ async def tag_image(interaction:discord.Interaction, name:str):
 @client.tree.command(name="tag_text", description="Display the text relating to a tag")
 @app_commands.describe(name="The name of the tag you want to display")
 async def tag_text(interaction:discord.Interaction, name:str):
-    data = await db.getTag(name)
+    data = await db.get_tag(name)
     if (data==None):
         await interaction.response.send_message("Error, tag was not found", ephemeral=True)
     else:
-        text = data[db.LabelIndex.label_text.value]
+        text = data[db.label_index.label_text.value]
         if (text==""):
             await interaction.response.send_message("Error, tag has no text", ephemeral=True)
         else:
@@ -252,12 +252,12 @@ async def tag_text(interaction:discord.Interaction, name:str):
 @client.tree.command(name="tag", description="Display the information relating to a tag")
 @app_commands.describe(name="The name of the tag you want to display")
 async def tag(interaction:discord.Interaction, name:str):
-    data = await db.getTag(name)
+    data = await db.get_tag(name)
     if (data==None):
         await interaction.response.send_message("Error, tag was not found", ephemeral=True)
     else:
-        text = data[db.LabelIndex.label_text.value]
-        image = data[db.LabelIndex.label_image_path.value]
+        text = data[db.label_index.label_text.value]
+        image = data[db.label_index.label_image_path.value]
         await interaction.response.send_message(text +" "+image)
 
 @client.tree.command(name="help", description="Get some help")
@@ -283,7 +283,7 @@ async def updateTag(ctx, *args):
                 attachement = attachement[0]
             else:
                 attachement = ""
-            result = await db.updateTag(ctx.author.id, name, " ".join(str(word) for word in args), str(attachement))
+            result = await db.update_tag(ctx.author.id, name, " ".join(str(word) for word in args), str(attachement))
             await ctx.send(result)
     
 #Create a tag, excepts discord.py context and list of string arugments

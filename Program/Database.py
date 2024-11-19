@@ -10,7 +10,7 @@ from dotenv import load_dotenv, dotenv_values
 
 
 #Enum to get the index of a value from the tag table assuming that you are getting the entire row
-class LabelIndex(Enum):
+class label_index(Enum):
     label_name = 0
     label_text = 1
     label_image_path = 2
@@ -55,12 +55,12 @@ quest_dict = {
 }
 
 #Get last leaderboard upate
-async def getLastUpdate():
+async def get_last_update():
     global_cursor.execute("SELECT lastUpdate FROM globalData")    
     return global_cursor.fetchone()[0]
 
 #Calculate stock value
-async def calcStockValue(data):
+async def calc_stock_value(data):
     total = 0
     for key, value in data.items():
         info = yf.Ticker(key).info
@@ -68,13 +68,13 @@ async def calcStockValue(data):
     return total
 
 #Update leadebord
-async def updateLeaderBoard():
+async def update_leader_board():
     cursor.execute("SELECT stock_dicts, id FROM stocks")
     stockData = cursor.fetchall()
     count = 0
     for row in stockData:
-        amount = round(await calcStockValue(json.loads(row[0])), 2)
-        await updateTotalAndStock(row[1],amount)
+        amount = round(await calc_stock_value(json.loads(row[0])), 2)
+        await update_total_and_stock(row[1],amount)
     cursor.execute("SELECT username, total, points, stock_value, id FROM users ORDER BY total DESC")
     users = cursor.fetchall()
     userNames = ""
@@ -92,48 +92,48 @@ async def updateLeaderBoard():
     global_connection.commit()
 
 #Method to update toatla and stock value
-async def updateTotalAndStock(id:int, stockAmount:int):
-    total = round(await getPoints(id) + stockAmount,2)
+async def update_total_and_stock(id:int, stockAmount:int):
+    total = round(await get_points(id) + stockAmount,2)
     cursor.execute("UPDATE users SET stock_value=?, total=? WHERE id=?",(stockAmount, total, id))
     database.commit()
 
 
-async def getLeaderBoard():
+async def get_leader_board():
     global_cursor.execute("SELECT leaderboard FROM globalData")
     return global_cursor.fetchone()[0]
 
-async def getUserData(id:int):
+async def get_user_data(id:int):
     cursor.execute("SELECT placement, username, total, points, stock_value FROM users WHERE id=?",(id,))
     return cursor.fetchone()
 
 #Quest and cooldown database functions
 
 #Reset daily cooldown for speciifed user
-async def resetDailyCooldown(id:int):
+async def reset_daily_cooldown(id:int):
     date = datetime.datetime.today().strftime(format)
     cursor.execute("UPDATE cooldown SET last_daily=? WHERE id=?",(date,id))
     database.commit()
 
 #Check if the daily cooldown is less than or equal to the cooldown
-async def checkDailyCooldown(id:int):
+async def check_daily_cooldown(id:int):
     cursor.execute("SELECT last_daily FROM cooldown WHERE id=?",(id,))
     timeDifference = (datetime.datetime.today() - datetime.datetime.strptime(cursor.fetchone()[0], format)).days
     return timeDifference>=cooldown or cooldown_bypass
 
 #Check if the quest cooldown is less than or equal to the cooldown
-async def checkQuestCooldown(id:int):
+async def check_quest_cooldown(id:int):
     cursor.execute("SELECT last_quest FROM cooldown WHERE id=?",(id,))
     timeDifference = (datetime.datetime.today() - datetime.datetime.strptime(cursor.fetchone()[0], format)).days
     return timeDifference>=cooldown or cooldown_bypass
 
 #Resets the quest cooldown
-async def resetQuestCooldown(id:int):
+async def reset_quest_cooldown(id:int):
     date = datetime.datetime.today().strftime(format)
     cursor.execute("UPDATE cooldown SET last_quest=? WHERE id=?",(date,id))
     database.commit()
 
 #Updates the quests with new random quests
-async def updateQuests(id:int, quest_id:int, amount:int=1):
+async def update_quests(id:int, quest_id:int, amount:int=1):
     cursor.execute("SELECT quest1, quest2, quest3 FROM quests WHERE id=?",(id,))
     quests = list(cursor.fetchone())
     for i in range(len(quests)):
@@ -146,7 +146,7 @@ async def updateQuests(id:int, quest_id:int, amount:int=1):
     
     
 #Genreate a random quest
-def getNewQuest():
+def get_new_quest():
     goal = random.randint(1,5)
     quest = {
         "id" : random.randint(0,2),
@@ -158,7 +158,7 @@ def getNewQuest():
     return json.dumps(quest)
 
 #Get all the quests from a user
-async def getQuests(id:int):
+async def get_quests(id:int):
     cursor.execute("SELECT quest1, quest2, quest3 FROM quests WHERE id=?",(id,))
     quests = list(cursor.fetchone())
     for i in range(len(quests)):
@@ -167,22 +167,22 @@ async def getQuests(id:int):
     return quests
 
 #Reset the quests the user currently has
-async def resetQuests(id:int):
-    cursor.execute("UPDATE quests SET quest1 = ?, quest2 = ?, quest3 = ? WHERE id=?",(getNewQuest(),getNewQuest(),getNewQuest(),id))
+async def reset_quests(id:int):
+    cursor.execute("UPDATE quests SET quest1 = ?, quest2 = ?, quest3 = ? WHERE id=?",(get_new_quest(),get_new_quest(),get_new_quest(),id))
     database.commit()
 
 #Reaplces all quests that are completed
-async def setNewQuets(id:int):
+async def set_new_quets(id:int):
     cursor.execute("SELECT quest1, quest2, quest3 FROM quests WHERE id=?",(id,))
     quests = list(cursor.fetchone())
     for i in range(len(quests)):
         quest = json.loads(quests[i])
         if quest["progress"]>=quest["goal"]:
-            quests[i] = getNewQuest()
+            quests[i] = get_new_quest()
     cursor.execute("UPDATE quests SET quest1 = ?, quest2 = ?, quest3 = ? WHERE id=?",(quests[0],quests[1],quests[2],id))
 
 #Claims quest if the quest has not been claimed
-async def claimQuests(id:int):
+async def claim_quests(id:int):
     cursor.execute("SELECT quest1, quest2, quest3 FROM quests WHERE id=?",(id,))
     quests = cursor.fetchone()
     total_points = 0
@@ -196,7 +196,7 @@ async def claimQuests(id:int):
     return total_points
 
 #Creates repository if they do not exist
-async def createRepository():
+async def create_repository():
     cursor.execute("CREATE TABLE IF NOT EXISTS tags(label_name TEXT PRIMARY KEY, label_text TEXT, label_image_path TEXT, user_id INT )")
     cursor.execute("CREATE TABLE IF NOT EXISTS cooldown(id INT PRIMARY KEY, last_daily TEXT, last_quest TEXT )")
     cursor.execute("CREATE TABLE IF NOT EXISTS quests(id INT PRIMARY KEY,quest1 TEXT, quest2 TEXT, quest3 TEXT)")
@@ -210,7 +210,7 @@ async def createRepository():
     
     
 #Insets new user into the database if they do not exist
-async def insertNewUserIfNotExists(id:int,name:str):
+async def insert_new_user_if_no_exists(id:int,name:str):
     cursor.execute("SELECT * FROM users WHERE id=?",(id,))
     if(cursor.fetchone() is None):
         global_cursor.execute("SELECT users FROM globalData")
@@ -220,27 +220,27 @@ async def insertNewUserIfNotExists(id:int,name:str):
         global_connection.commit()
         cursor.execute("INSERT INTO users VALUES(?,?,?,?,?,?)",(id,0,0,0,name,numUsers))
         cursor.execute("INSERT INTO cooldown VALUES(?,?,?)",(id,default_date,default_date))
-        cursor.execute("INSERT INTO quests VALUES(?,?,?,?)",(id,getNewQuest(),getNewQuest(),getNewQuest()))
+        cursor.execute("INSERT INTO quests VALUES(?,?,?,?)",(id,get_new_quest(),get_new_quest(),get_new_quest()))
         cursor.execute("INSERT INTO stocks VALUES(?,?,?)",(id, "{}", "[]"))
         database.commit()
 
 #Get the amount of a stock a user has
-async def getAmountOfStock(id:int, ticker:str):
-    dictionary = await getStocks(id)
+async def get_amount_of_stock(id:int, ticker:str):
+    dictionary = await get_stocks(id)
     if (ticker in dictionary):
         return dictionary[ticker]
     else:
         return 0
 
 #Gets all the sotcks a user has
-async def getStocks(id:int):
+async def get_stocks(id:int):
     cursor.execute("SELECT stock_dicts FROM stocks WHERE id=?",(id,))
     data = cursor.fetchone()
     dictionary = json.loads(data[0])
     return dictionary
 
 #Update the value of stocks a user has
-async def updateStockValue(id:int, value:float):
+async def update_stock_value(id:int, value:float):
     cursor.execute("SELECT stock_value FROM users WHERE id=?",(id,))
     data = cursor.fetchone()[0]
     data += value
@@ -249,17 +249,17 @@ async def updateStockValue(id:int, value:float):
     database.commit()
 
 #Set the value of stock a user has
-async def setStockValue(id:int, value:float):
+async def set_stock_value(id:int, value:float):
     cursor.execute("UPDATE users SET stock_value=? WHERE id=?",(value, id))
     database.commit()
 
 #Get the value of stock stored in the database
-async def getStoredStockValue(id:int):
+async def get_stored_stock_value(id:int):
     cursor.execute("SELECT stock_value FROM users WHERE id=?",(id,))
     return round(cursor.fetchone()[0],2)
 
 #Update the stocks a user has
-async def updateStock(id:int, stock_dict, action:str, amount:int):
+async def update_stock(id:int, stock_dict, action:str, amount:int):
     cursor.execute("SELECT * FROM stocks WHERE id=? ",(id,))
     userDataJSON = cursor.fetchone()
     userData = []
@@ -270,21 +270,21 @@ async def updateStock(id:int, stock_dict, action:str, amount:int):
     if (userData[0].get(ticker)==None):
         userData[0][ticker] = 0
     if (action=="Buy"):
-        await updatePoints(id, stock_dict["ask"]*-1*amount)
+        await update_points(id, stock_dict["ask"]*-1*amount)
         userData[0][ticker] = userData[0][ticker]+amount
         price = stock_dict["ask"]
-        await updateStockValue(id, stock_dict["bid"]*amount)
-        await updateQuests(id, quest_dict["Buy Stock"], amount)
+        await update_stock_value(id, stock_dict["bid"]*amount)
+        await update_quests(id, quest_dict["Buy Stock"], amount)
     elif (action=="Sell"):
-        await updatePoints(id, stock_dict["bid"]*amount)
+        await update_points(id, stock_dict["bid"]*amount)
         newAmountOfStock = userData[0][ticker]-amount
         if (newAmountOfStock>0):
             userData[0][ticker] = newAmountOfStock 
         else:
             del userData[0][ticker]
         price = stock_dict["bid"]
-        await updateStockValue(id, stock_dict["bid"]*amount*-1)
-        await updateQuests(id, quest_dict["Sell Stock"], amount)
+        await update_stock_value(id, stock_dict["bid"]*amount*-1)
+        await update_quests(id, quest_dict["Sell Stock"], amount)
     transaction = {
         "stock":stock_dict["underlyingSymbol"],
         "action": action,
@@ -295,13 +295,13 @@ async def updateStock(id:int, stock_dict, action:str, amount:int):
     database.commit()
 
 #Get the number of points a user has
-async def getPoints(id:int):
+async def get_points(id:int):
     cursor.execute("SELECT points FROM users WHERE id=?",(id,))
     points = cursor.fetchone()
     return points[0]
 
 #Update the amount of points a user has
-async def updatePoints(id:int, change:float):
+async def update_points(id:int, change:float):
     cursor.execute("SELECT points FROM users WHERE id=?",(id,))
     points = cursor.fetchone()[0]
     points += change
@@ -311,28 +311,28 @@ async def updatePoints(id:int, change:float):
     return points
 
 #Remove tag if it exists
-async def deleteTag(name:str):
+async def delete_tag(name:str):
     cursor.execute("DELETE FROM tags WHERE label_name=?",(name,))
     database.commit()
 
 #Gets the data relating to a tag based on name
-async def getTag(name:str):
+async def get_tag(name:str):
     cursor.execute("SELECT * FROM tags WHERE label_name=?",(name,))
     result = cursor.fetchone()
     return result
 
 #Update a tag with new values assuming that empty arguments mean not change if the tag exists
-async def updateTag(user:int, name:str, text:str, image=""):
-    result = await getTag(name)
+async def update_tag(user:int, name:str, text:str, image=""):
+    result = await get_tag(name)
     if (result==None):
         return "Error, tag not found"
-    elif(user!=result[LabelIndex.user_id.value]):
+    elif(user!=result[label_index.user_id.value]):
         return "Error, you did not create the tag and do not have permission"
     else:
         if (text==""):
-            text=result[LabelIndex.label_text.value]
+            text=result[label_index.label_text.value]
         if (image==""):
-            image=result[LabelIndex.label_image_path.value]
+            image=result[label_index.label_image_path.value]
         cursor.execute("UPDATE tags SET label_text=?, label_image_path=? WHERE label_name=?",(text, image, name))
         database.commit()
         return "Tag updated sucessfully"
@@ -343,7 +343,7 @@ async def addTag(user:int, name:str, text:str, image=""):
         return "Please input the tag with the format of: name(space)text"
     if (text=="" and image==""):
         return "Either text or image must have an input, both cannot be empty at once"
-    result = await getTag(name)
+    result = await get_tag(name)
     if (result == None):
         cursor.execute("INSERT INTO tags VALUES(?,?,?,?)",(name, text, image, user))
         database.commit()
