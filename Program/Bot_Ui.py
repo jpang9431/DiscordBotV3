@@ -16,7 +16,7 @@ quests = db.quests
 quest_dict = db.quest_dict
 
 #Function to handle a back button 
-class back_button(Button):
+class back_button(discord.ui.Button):
     def __init__(self, interaction:discord.Interaction):
         super().__init__(label="Back", style=discord.ButtonStyle.blurple)
         self.interaction = interaction
@@ -240,9 +240,25 @@ class refresh_stocks(discord.ui.Button):
         user = interaction.user
         view = View()
         embed = discord.Embed(title=user.display_name, color=user.color)
-        await edit_stock_market_view_and_embed(view, embed,user,self.interaction)  
+        await  edit_stock_view_and_embed(view, embed,user,self.interaction)  
         await self.interaction.edit_original_response(view=view, embed=embed)
         await interaction.response.defer()
+
+#Get and display the stocks a user has
+async def edit_stock_view_and_embed(view:discord.ui.View, embed:discord.Embed, user:discord.User, interaction:discord.Interaction):
+    data = await db.getStocks(user.id)
+    msg = ""
+    totalStockValue = 0
+    for key, value in data.items():
+        info = yf.Ticker(key).info
+        msg += info["shortName"]+" ("+key+") | Amount: "+str(value)+" | Value: "+str(value*info["bid"])+"\n"
+        totalStockValue += value*info["bid"]
+    await db.setStockValue(user.id, totalStockValue)
+    embed.add_field(name="Owned Stocks", value=msg)
+    if (not user.avatar == None):
+        embed.set_thumbnail(url=user.avatar.url)
+    view.add_item(back_button(interaction))
+    view.add_item(refresh_stocks(interaction, "Refresh Stocks"))
 
 #Refresh the current leaderboard for new information button
 class refresh_leaderboard(discord.ui.Button):

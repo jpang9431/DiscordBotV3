@@ -30,7 +30,7 @@ global_cursor = global_connection.cursor()
 cooldown = 1
 
 #Wether or not to bypass cooldown
-cooldown_bypass = False
+cooldown_bypass = True
 
 #Formate for dates
 format = "%Y-%d-%m"
@@ -226,7 +226,7 @@ async def insertNewUserIfNotExists(id:int,name:str):
 
 #Get the amount of a stock a user has
 async def getAmountOfStock(id:int, ticker:str):
-    dictionary = getStocks(id)
+    dictionary = await getStocks(id)
     if (ticker in dictionary):
         return dictionary[ticker]
     else:
