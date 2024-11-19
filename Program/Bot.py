@@ -101,7 +101,10 @@ async def tag(interaction:discord.Interaction, name:str):
         text = data[db.LabelIndex.label_text.value]
         image = data[db.LabelIndex.label_image_path.value]
         await interaction.response.send_message(text +" "+image)
-    
+
+@client.tree.command(name="help", description="Get some help")
+async def help(interaction:discord.Interaction):
+    await interaction.response.send_message("/help, !updateTag, !createTag, /tag, /tag_text, /tag_image, /remove_tag, /ping, /outputtotxt")
     
 #Update a tag, assume any missing arugments are to be ignored
 @client.command()
@@ -110,7 +113,7 @@ async def updateTag(ctx, *args):
         attachement = ctx.message.attachments
         
         if (len(args)==0):
-            await ctx.send("Arguments missing please use the following format of \'!createTag name text\' and then attach and image. Text and attachment are optional")
+            await ctx.send("Arguments missing please use the following format of \'!update name text\' and then attach and image. Text and attachment are optional")
             return
         data = await db.getTag(args[0])
         if (data[db.LabelIndex.user_id.value]!=ctx.author.id):
@@ -227,7 +230,7 @@ async def outputtotxt(interaction: discord.Interaction):
     channels = guild.text_channels
     count = 0
     filepath = fullTextOutputFilePath
-    file = open(filepath, "w", encoding="utf-8")
+    file = open(filepath, "w+", encoding="utf-8")
     totalTime = time.time()
     for channel in channels:
         messagesInChannel = 0

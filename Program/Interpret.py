@@ -30,7 +30,7 @@ def addWordsToDictionary(dict, everyoneDict, words):
                 everyoneDict[word] = 1
 
 def writeToFileFromDict(filePath, dictionary):
-    with open (filePath, "w", encoding="utf-8") as f:
+    with open (filePath, "w+", encoding="utf-8") as f:
         f.write("{")
         count = 0
         numDicts = len(dictionary)
@@ -150,3 +150,6 @@ def generateGraph():
     pos = nx.spring_layout(graph)
     nx.draw(graph, pos, with_labels=True, node_size=9000, node_color="skyblue", edge_color="gray")
     plt.show()
+
+if __name__ == "__main__":
+    interpretMessage()
