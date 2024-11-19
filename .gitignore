@@ -8,3 +8,4 @@ Links.json
 __pycache__
 .env
 database.db
+global.db

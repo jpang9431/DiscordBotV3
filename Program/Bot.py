@@ -10,6 +10,17 @@ import Database as db
 from dotenv import load_dotenv, dotenv_values 
 import urllib.request
 import uuid
+from Bot_Ui import edit_menu
+from Bot_Ui import edit_quest
+from Bot_Ui import edit_daily
+from Bot_Ui import edit_stock_market_view_and_embed
+from Bot_Ui import edit_leaderboard
+from discord.ext import commands
+from discord.ui import View
+from discord import app_commands
+import yfinance as yf
+import asyncio
+
 
 load_dotenv() 
 
@@ -34,13 +45,158 @@ currentlyProcessing = False
 #Necessary default bot stuff
 client = commands.Bot(command_prefix='!', intents=discord.Intents.all())
 
+#Set up the leaderboard to update at ceratin periods of time
+async def updateLeaderBoardInterval():
+    while True:
+        await db.updateLeaderBoard()
+        await asyncio.sleep(3600)
+        
+#Event trigger as soon as the program is run
 @client.event
 async def on_ready():
     await db.createRepository()
     print("Online")
     synced = await client.tree.sync()
     print(len(synced))
+    await db.updateLeaderBoard()
+    await updateLeaderBoardInterval()
     
+#Handle the bot being added to a new guild
+async def add_guild(guild):
+    for user in guild.members:
+        if not user.bot:
+            await db.insertNewUserIfNotExists(user.id, user.global_name)
+            
+#Trigger adding all users in a guild
+@client.event
+async def on_guild_join(guild):
+    await add_guild(guild)
+
+#Command to add new users to the db
+@client.tree.command(name="add_new_users", description="Add users not in the database")
+async def add_new_users(interaction:discord.Interaction):
+    await add_guild(interaction.guild)
+    await interaction.response.send_message(content="Process completed", ephemeral=True)
+    
+#command to check quest infromation
+@client.tree.command(name="quest", description="Check/Claim quest progress and get new quests")
+async def quest(interaction:discord.Interaction):
+    userId = interaction.user.id
+    await db.insertNewUserIfNotExists(userId, interaction.user.global_name)
+    user = interaction.user
+    embed = discord.Embed(title=user.display_name, color = user.color)
+    view = View()
+    await edit_quest(view, embed, user,interaction)
+    await interaction.response.send_message(embed=embed, view=view)
+
+#Get the menu of options from discord slash command
+@client.tree.command(name="menu", description="View the menu of options")
+async def menu(interaction:discord.Interaction):
+    userId = interaction.user.id
+    await db.insertNewUserIfNotExists(userId, interaction.user.global_name)
+    user = interaction.user
+    embed = discord.Embed(title=user.display_name, color = user.color)
+    view = View()
+    await edit_menu(view, embed, user, interaction)
+    await interaction.response.send_message(embed=embed, view=view)
+
+#Claim daily reward
+@client.tree.command(name="daily", description="Claim daily reward")
+async def daily(interaction:discord.Interaction):
+    user = interaction.user
+    await db.insertNewUserIfNotExists(user.id, interaction.user.global_name)
+    embed = discord.Embed(title=user.display_name, color = user.color)
+    view = View()
+    await edit_daily(view, embed, user, interaction)
+    await interaction.response.send_message(embed=embed, view=view)
+
+#Display the stock marknet menu
+@client.tree.command(name="stock_market", description="Display the menu for the stock market")
+@app_commands.describe(ticker="The stock ticker symbol that you want to look up")
+@app_commands.describe(amount="Amount of stocks to buy/sell")
+async def stock_market(interaction:discord.Interaction, ticker: str, amount: app_commands.Range[int,0]):
+    tickerObj = yf.Ticker(ticker)
+    if(tickerObj.cashflow.empty):
+        await interaction.response.send_message(content="Error, the stock is not found", ephemeral=True)
+        return
+    user = interaction.user
+    view = View()
+    embed = discord.Embed(title=user.display_name, color = user.color)
+    await edit_stock_market_view_and_embed(view, embed, ticker, user, interaction, amount)
+    await interaction.response.send_message(embed=embed, view=view)
+
+#Buy stocks
+@client.tree.command(name="buy_stocks", description="Buy stocks")
+@app_commands.describe(ticker="The stock ticker symbol that you want to look up")
+@app_commands.describe(amount="Amount of stocks to buy/sell")
+async def buy_stocks(interaction:discord.Interaction, ticker: str, amount: app_commands.Range[int,0]):
+    stock_ticker = yf.Ticker(ticker)
+    if(stock_ticker.cashflow.empty):
+        await interaction.response.send_message(content="Error, the stock is not found", ephemeral=True)
+        return
+    user = interaction.user
+    view = View()
+    embed = discord.Embed(title=user.display_name, color = user.color)
+    points = await db.getPoints(user.id)
+    stock_ticker_info = stock_ticker.info
+    canAfford = points>=stock_ticker_info["ask"]*amount
+    if (canAfford):
+        await db.updateStock(user.id, stock_ticker_info, "Buy", amount)
+    await edit_stock_market_view_and_embed(view=view, embed=embed, ticker=ticker, user=user, interaction=interaction, amount=amount)
+    if (canAfford):
+            embed.add_field(name="Action Result", value="Sucessfully bought "+str(amount)+" of "+stock_ticker_info["shortName"], inline=False)
+    else:
+        embed.add_field(name="Action Result", value="Too poor to afford the stocks", inline=False)
+    await interaction.response.send_message(view=view, embed=embed)
+
+#Sell stocks
+@client.tree.command(name="sell_stocks", description="Sell stocks")
+@app_commands.describe(ticker="The stock ticker symbol that you want to look up")
+@app_commands.describe(amount="Amount of stocks to buy/sell")
+async def sell_stocks(interaction:discord.Interaction, ticker: str, amount: app_commands.Range[int,0]):
+    stock_ticker = yf.Ticker(ticker)
+    if(stock_ticker.cashflow.empty):
+        await interaction.response.send_message(content="Error, the stock is not found", ephemeral=True)
+        return
+    user = interaction.user
+    view = View()
+    embed = discord.Embed(title=user.display_name, color = user.color)
+    stock_ticker_info = stock_ticker.info
+    stock_ticker_amount = await db.getAmountOfStock(user.id, ticker)
+    hasStocks = amount<=stock_ticker_amount
+    if (hasStocks):
+        await db.updateStock(user.id, stock_ticker_info, "Sell", amount)
+    await edit_stock_market_view_and_embed(view, embed, ticker, user, interaction, amount)
+    if (hasStocks):
+        embed.add_field(name="Action Result", value="Sucessfully sold "+str(amount)+" of "+stock_ticker_info["shortName"], inline=False)
+    else:
+        embed.add_field(name="Action Result", value="Too few stocks own to sell", inline=False)
+    await interaction.response.send_message(view=view, embed=embed)
+
+#Check owned stocks
+@client.tree.command(name="owned_stocks", description="View stocks owned")
+async def owned_stocks(interaction:discord.Interaction):
+    user = interaction.user
+    view = View()
+    embed = discord.Embed(title=user.display_name, color = user.color)
+    await edit_stock_market_view_and_embed(view, embed, interaction.user, interaction)
+    await interaction.response.send_message(embed=embed, view=view)
+
+#Update leaderboard
+@client.tree.command(name="update_leaderboard", description="Refresh leaderboard")
+@app_commands.checks.has_permissions(administrator=True)
+async def update_leaderboard(interaction:discord.Interaction):
+    await db.updateLeaderBoard()
+    user = interaction.user
+    view = View()
+    embed = discord.Embed(title=user.display_name, color = user.color)
+    await edit_leaderboard(view, embed, interaction.user, interaction)
+    await interaction.response.send_message(view=view, embed=embed)
+
+#Error when a non-admin tries to update leaderboard 
+@update_leaderboard.error
+async def update_leaderboard_error(interaction, error):
+    await interaction.response.send_message(content="You do not have the permission to update the leaderboard", ephemeral=True)
 
 #Save the image and return the path of the image
 def saveImage(url):
@@ -154,6 +310,7 @@ async def ping(interaction: discord.Interaction):
 
 
 #Based on my output to txt bot: https://github.com/jpang9431/DiscordBotToOuputTextToDocuments/blob/main/Bot.py
+#Get all channel Ids
 async def getChannelIds(interaction: discord.Interaction):
     await interaction.response.send_message("Started Process")
     guild = interaction.guild
@@ -162,6 +319,7 @@ async def getChannelIds(interaction: discord.Interaction):
         await interaction.channel.send("#"+str(channel.id) + ","+channel.name)
     await interaction.channel.send("Done")
 
+#Get all roles
 async def getRoleIds(interaction: discord.Interaction):
     await interaction.response.send_message("Started Process")
     guild = interaction.guild
@@ -171,6 +329,7 @@ async def getRoleIds(interaction: discord.Interaction):
          await interaction.channel.send("@&"+str(role.id)+">"+","+role.name)
     await interaction.channel.send("Done")
 
+#Get all sepcial discord escape seuqences
 async def getSpeicalCombinations(interaction: discord.Interaction, speicalEscapes, regularReplace,typeOfEscape):
     guild = interaction.guild
     filePath = sepicalTextOutputFilePath
@@ -208,12 +367,7 @@ async def getSpeicalCombinations(interaction: discord.Interaction, speicalEscape
         file.write(speicalEscapes[i]+","+regularReplace[i]+","+typeOfEscape[i]+"\n")
     file.close()    
 
-async def getspecialcombinations(interaction: discord.Interaction):
-    speicalEscapes = []
-    regularReplace = []
-    typeOfEscape = []
-    await getSpeicalCombinations(interaction, speicalEscapes, regularReplace, typeOfEscape)
-
+#Output all the information into a local txt
 @client.tree.command(name="outputtotxt", description="Output and parse data from a discord group")
 async def outputtotxt(interaction: discord.Interaction):
     global currentlyProcessing
