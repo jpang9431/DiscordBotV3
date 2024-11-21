@@ -17,8 +17,10 @@ linkCountFilePath = fileData["linksFile"]
 
 pingGraph = fileData["pingGraph"]
 
-def addWordsToDictionary(dict, everyoneDict, words):
+def addWordsToDictionary(dict, everyoneDict, words, lowercase=False):
     for word in words:
+        if (lowercase):
+            word = word.lower()
         if word:
             if (word in dict):
                 dict[word] = dict[word]+1
@@ -87,8 +89,8 @@ def interpretMessage():
         userCharDict= userChar[user]
         userLinkDict = userLink[user]
         speicalThread = threading.Thread(target=addWordsToDictionary, args=(userSpeicalDict, userSpeical["Everyone"], speicalWords))
-        wordThread = threading.Thread(target=addWordsToDictionary, args=(userWordsDict, userWordsDictionary["Everyone"], words))
-        charThread = threading.Thread(target=addWordsToDictionary, args=(userCharDict, userChar["Everyone"], chars))
+        wordThread = threading.Thread(target=addWordsToDictionary, args=(userWordsDict, userWordsDictionary["Everyone"], words, True))
+        charThread = threading.Thread(target=addWordsToDictionary, args=(userCharDict, userChar["Everyone"], chars, True))
         linkThread = threading.Thread(target=addWordsToDictionary, args=(userLinkDict, userLink["Everyone"], links))
         speicalThread.start()
         wordThread.start()
