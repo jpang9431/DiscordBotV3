@@ -1,5 +1,4 @@
 import os
-import datetime
 import time
 import discord
 from discord import app_commands
@@ -7,7 +6,7 @@ from discord.ext import commands
 import json
 import Interpret
 import Database as db
-from dotenv import load_dotenv, dotenv_values 
+from dotenv import load_dotenv 
 import urllib.request
 import uuid
 from Bot_Ui import back_button, blackjack_hit_button, blackjack_stay_button, edit_menu
@@ -20,7 +19,6 @@ from discord.ui import View
 from discord import app_commands
 import yfinance as yf
 import asyncio
-import Minigame
 from Minigame import blackJack
 
 

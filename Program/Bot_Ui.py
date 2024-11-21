@@ -1,11 +1,5 @@
-import os
-import datetime
-import time
 import discord
-from discord import Button, app_commands
-from discord.ext import commands
 import json
-import Interpret
 import Database as db
 from discord.ui import View
 import random

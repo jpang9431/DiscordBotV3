@@ -1,5 +1,4 @@
 import json
-import os
 import re
 import threading
 import networkx as nx

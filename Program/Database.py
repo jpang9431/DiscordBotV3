@@ -4,9 +4,8 @@ import json
 import random 
 import datetime
 import yfinance as yf
-import os
 from enum import Enum
-from dotenv import load_dotenv, dotenv_values 
+from dotenv import load_dotenv 
 
 
 #Enum to get the index of a value from the tag table assuming that you are getting the entire row
