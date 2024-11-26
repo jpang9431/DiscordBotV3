@@ -21,7 +21,7 @@ import yfinance as yf
 import asyncio
 from Minigame import blackJack
 
-
+#Loads the envrioment varaibles
 load_dotenv() 
 
 #Global variables
@@ -29,14 +29,17 @@ token = os.getenv("token")
 config = open("config.json")
 fileData = json.load(config)
 
+#File paths for the output to txt raw files
 fullTextOutputFilePath = fileData["fullTextOutputFilePath"]
 sepicalTextOutputFilePath = fileData["sepicalTextOutputFilePath"]
 
+#File paths for the output to txt processed files
 wordCountFilePath = fileData["wordCountFile"]
 specialCountFilePath = fileData["specialCountFile"]
 charCountFilePath = fileData["characterCountFile"]
 linkCountFilePath = fileData["linksFile"]
 
+#List of all files
 files = [fullTextOutputFilePath, sepicalTextOutputFilePath, wordCountFilePath, specialCountFilePath, charCountFilePath, linkCountFilePath]
 
 #Prevents race condition for writing to document
@@ -258,6 +261,7 @@ async def tag(interaction:discord.Interaction, name:str):
         image = data[db.label_index.label_image_path.value]
         await interaction.response.send_message(text +" "+image)
 
+#Lists all possible commands (is out of date TODO complete it)
 @client.tree.command(name="help", description="Get some help")
 async def help(interaction:discord.Interaction):
     await interaction.response.send_message("/help, !updateTag, !createTag, /tag, /tag_text, /tag_image, /remove_tag, /ping, /outputtotxt")
@@ -437,5 +441,6 @@ async def coinflip(interaction:discord.Interaction, bet:int=0):
     view.add_item(flip_coin_button(interaction,bet,"Heads"))
     view.add_item(flip_coin_button(interaction,bet,"Tails"))
     await interaction.response.send_message(view=view,embed=emded)
-    
+
+#Runs the bot token
 client.run(token)

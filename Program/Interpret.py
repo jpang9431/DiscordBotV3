@@ -4,18 +4,22 @@ import threading
 import networkx as nx
 import matplotlib.pyplot as plt
 
+#loads settings file
 config = open("config.json")
 fileData = json.load(config)
+
+#File paths for raw text files
 fullTextOutputFilePath = fileData["fullTextOutputFilePath"]
 sepicalTextOutputFilePath = fileData["sepicalTextOutputFilePath"]
 
+#file paths for processed text files
 wordCountFilePath = fileData["wordCountFile"]
 specialCountFilePath = fileData["specialCountFile"]
 charCountFilePath = fileData["characterCountFile"]
 linkCountFilePath = fileData["linksFile"]
-
 pingGraph = fileData["pingGraph"]
 
+#Adds a word to two dictionaries if not found otherwise increment by one, lowercase is wether the words should be made lowercase
 def addWordsToDictionary(dict, everyoneDict, words, lowercase=False):
     for word in words:
         if (lowercase):
@@ -30,6 +34,7 @@ def addWordsToDictionary(dict, everyoneDict, words, lowercase=False):
             else:
                 everyoneDict[word] = 1
 
+#Write the data from a dictonary to a file
 def writeToFileFromDict(filePath, dictionary):
     with open (filePath, "w+", encoding="utf-8") as f:
         f.write("{")
@@ -46,6 +51,7 @@ def writeToFileFromDict(filePath, dictionary):
         f.write("}")
         f.close()
 
+#Interepet all the text in raw files
 def interpretMessage():
     userWordsDictionary = dict()
     userWordsDictionary["Everyone"] = dict()
@@ -114,9 +120,11 @@ def interpretMessage():
     print("Done")
     file.close()
 
+#Print to utf8 for testing purchases
 def printUTF8(text):
     print(text.encode("utf8"))
-    
+
+#Genetate a graph of pings
 def graph():
     graphAsAdjacenyList = dict()
     validPings = []
@@ -141,6 +149,7 @@ def graph():
         f.close()
     writeToFileFromDict(pingGraph, graphAsAdjacenyList)
 
+#Gerenate a graph from strings
 def generateGraph():
     file = open(pingGraph, "r", encoding="utf8")
     data = json.load(file)
@@ -152,5 +161,6 @@ def generateGraph():
     nx.draw(graph, pos, with_labels=True, node_size=9000, node_color="skyblue", edge_color="gray")
     plt.show()
 
+#Testing method which runs interepetMessage if this the file ran to allow the file to be ran indpent of bot code
 if __name__ == "__main__":
     interpretMessage()

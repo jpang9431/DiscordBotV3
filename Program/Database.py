@@ -15,13 +15,17 @@ class label_index(Enum):
     label_image_path = 2
     user_id = 3
 
+#The two possible choices for a coin flip must match the button names
 coinFlipChoices=["Heads","Tails"]
 
+#Load envrioment variables (currently unsued)
 load_dotenv() 
 
+#Load the config.json file
 config = open("config.json")
 fileData = json.load(config)
 
+#Loads the database
 database = sqlite3.connect(fileData["database"])
 cursor = database.cursor()
 global_connection = sqlite3.connect("global.db")
@@ -39,6 +43,7 @@ format = "%Y-%d-%m"
 #Default date to set as cooldown, ensure that the differnce between current date and defualt date is greater than cooldown
 default_date = datetime.datetime(2024,1,1).strftime(format)
 
+#Dictonary for quests matching quest number to the quest descripnt. "?" is the goal number, "*" is the current number of completetion
 quests = {
     0:"Claim the daily reward ? time(s): */?",
     1:"Sell ? stock(s): */?",
@@ -47,6 +52,7 @@ quests = {
     4:"Play blackjack ? time: */?"
 }
 
+#Dictionary for quests macthing the quest name to the quest number
 quest_dict = {
     "Daily" : 0,
     "Sell Stock" : 1,
@@ -99,10 +105,12 @@ async def update_total_and_stock(id:int, stockAmount:int):
     database.commit()
 
 
+#Get the last saved leaderboard
 async def get_leader_board():
     global_cursor.execute("SELECT leaderboard FROM globalData")
     return global_cursor.fetchone()[0]
 
+#Get the row of user data from a user id
 async def get_user_data(id:int):
     cursor.execute("SELECT placement, username, total, points, stock_value FROM users WHERE id=?",(id,))
     return cursor.fetchone()
