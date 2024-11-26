@@ -9,7 +9,7 @@ import Database as db
 from dotenv import load_dotenv 
 import urllib.request
 import uuid
-from Bot_Ui import back_button, blackjack_hit_button, blackjack_stay_button, edit_menu
+from Bot_Ui import back_button, blackjack_hit_button, blackjack_stay_button, edit_coinflip_view_and_embed, edit_menu, flip_coin_button
 from Bot_Ui import edit_quest
 from Bot_Ui import edit_daily
 from Bot_Ui import edit_stock_market_view_and_embed
@@ -409,6 +409,7 @@ async def outputtotxt(interaction: discord.Interaction):
         await interaction.channel.send(file=discord.File(filePath))
     currentlyProcessing = False
 
+#Play blackjack what else would this command do
 @client.tree.command(name="blackjack", description="Play a game of blackjack")
 @app_commands.describe(bet="The amount you want to be must be >=0 and <= the number of points you have, if the bet is out of range it goes to the default of 0")
 async def blackjack(interaction:discord.Interaction,bet:int=0):
@@ -426,4 +427,15 @@ async def blackjack(interaction:discord.Interaction,bet:int=0):
     view.add_item(blackjack_stay_button(interaction, blackjack, bet))
     await interaction.response.send_message(view=view, embed=emded)
 
+#Flip coin command
+@client.tree.command(name="coinflip", description="Flip a coin")
+@app_commands.describe(bet="The amount you want to be must be >=0 and <= the number of points you have, if the bet is out of range it goes to the default of 0")
+async def coinflip(interaction:discord.Interaction, bet:int=0):
+    emded = discord.Embed(color=interaction.user.color, title="Flip coin for "+str(bet))
+    view = View()
+    view.add_item(back_button(interaction))
+    view.add_item(flip_coin_button(interaction,bet,"Heads"))
+    view.add_item(flip_coin_button(interaction,bet,"Tails"))
+    await interaction.response.send_message(view=view,embed=emded)
+    
 client.run(token)

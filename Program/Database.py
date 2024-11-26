@@ -15,6 +15,8 @@ class label_index(Enum):
     label_image_path = 2
     user_id = 3
 
+coinFlipChoices=["Heads","Tails"]
+
 load_dotenv() 
 
 config = open("config.json")
@@ -351,4 +353,15 @@ async def addTag(user:int, name:str, text:str, image=""):
         return "Error, tag already exists"
     
     
-    
+#Determine and process a coin flip bet
+async def coinFlip(user:int, bet:int, choice:str):
+    await update_quests(user,3)
+    winChoice=random.choice(coinFlipChoices)
+    print(bet)
+    print(winChoice)
+    if (choice==winChoice):
+        await update_points(user,bet)
+    else:
+        await update_points(user,bet*-1)
+    return choice==winChoice
+        

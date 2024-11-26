@@ -65,3 +65,11 @@ class blackJack():
         return calcHandValue(self.playerHand)
     def getDealerHandValue(self):
         return calcHandValue(self.dealerHand)
+    
+    
+def flipCoin(value:int, bet=0):
+    headTail = random.randint(0,1)
+    if (value==headTail):
+        return bet*2
+    else:
+        return 0

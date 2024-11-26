@@ -4,7 +4,6 @@ import Database as db
 from discord.ui import View
 import random
 import yfinance as yf
-
 from Minigame import blackJack
 
 #List of quests and the quest dictionary from databse
@@ -39,10 +38,13 @@ async def edit_menu(view:discord.ui.View, embed:discord.Embed, user:discord.User
     embed.add_field(name="User Stats", value="Position: "+str(data[0])+"\nTotal: "+str(data[2])+"\nPoints: "+str(data[3])+"\nStocks: "+str(data[4]),inline=False)
     embed.set_footer(text="*Position and stock last updated: "+str(await db.get_last_update()))
     view.add_item(daily_button(interaction))
+    view.add_item(refresh_leaderboard(interaction, "Leader Board"))
     view.add_item(claim_quests_button(interaction, "Quest")) 
     view.add_item(refresh_stocks(interaction, "Stocks"))
     view.add_item(play_blackjack_button(interaction,"Blackjack"))
-    view.add_item(refresh_leaderboard(interaction, "Leader Board"))
+    view.add_item(play_coin_flip_button(interaction,"Coin Flip"))
+    
+    
     
 #Button to be able to claim quests
 class claim_quests_button(discord.ui.Button):
@@ -286,7 +288,7 @@ async def edit_leaderboard(view:discord.ui.View, embed:discord.Embed, user:disco
     view.add_item(back_button(interaction))
     view.add_item(refresh_leaderboard(interaction,"Refresh Leaderboard"))
     
-
+#Function to edit the view and embed depdent on how the game ends
 async def end_blackjack(orgInteraction:discord.Interaction, interaction:discord.Interaction, bet:int, blackjack:blackJack, text:str):
     emded = discord.Embed(color=interaction.user.color, title="Blackjack but worse")
     emded.add_field(name="", value=text, inline=False)
@@ -298,7 +300,8 @@ async def end_blackjack(orgInteraction:discord.Interaction, interaction:discord.
     view.add_item(play_blackjack_button(orgInteraction, "Play again bet 0", 0))
     await db.update_quests(interaction.user.id,quest_dict["Blackjack"])
     await orgInteraction.edit_original_response(view=view,embed=emded)
-
+    
+# Menu button to play a game of blackjack 
 class play_blackjack_button(discord.ui.Button):
     def __init__(self, interaction:discord.Interaction, label:str, bet=0):
         super().__init__(label=label, style=discord.ButtonStyle.blurple)
@@ -313,6 +316,7 @@ class play_blackjack_button(discord.ui.Button):
         await edt_blackjack_view_and_embed(self.interaction, blackjack, self.bet)
         await interaction.response.defer()
     
+# Button to stay current hand in blackjack
 class blackjack_stay_button(discord.ui.Button):
     def __init__(self, interaction:discord.Interaction, blackjack:blackJack, bet:int):    
         super().__init__(label="Stay", style=discord.ButtonStyle.blurple)
@@ -351,7 +355,7 @@ class blackjack_hit_button(discord.ui.Button):
             await edt_blackjack_view_and_embed(self.interaction, self.blackjack, self.bet)
         await interaction.response.defer()
         
-
+# Edit the view and embed to display blackjack
 async def edt_blackjack_view_and_embed(interaction:discord.Interaction, blackjack:blackJack, bet:int):
     emded = discord.Embed(color=interaction.user.color, title="Blackjack but worse")
     emded.add_field(name="**Player Hand:"+str(blackjack.getPlayerHandValue())+"**", value=blackjack.stringPlayerHand, inline=False)
@@ -360,4 +364,39 @@ async def edt_blackjack_view_and_embed(interaction:discord.Interaction, blackjac
     view.add_item(back_button(interaction))
     view.add_item(blackjack_stay_button(interaction, blackjack, bet))
     view.add_item(blackjack_hit_button(interaction, blackjack, bet))
+    await interaction.edit_original_response(view=view,embed=emded)
+    
+# Coin flip menu button
+class play_coin_flip_button(discord.ui.Button):
+    def __init__(self, intearction, label:str):
+        super().__init__(label=label, style=discord.ButtonStyle.blurple)
+        self.intearction = intearction
+    async def callback(self,intearction):
+        print("?")
+        await edit_coinflip_view_and_embed(self.intearction,0,"")   
+        intearction.response.defer()
+
+#Coin flip button to play acutal game (expects Heads or Tails as label input)
+class flip_coin_button(discord.ui.Button):
+    def __init__(self, intearction, bet: int, label:str):
+        super().__init__(label=label, style=discord.ButtonStyle.blurple)
+        self.intearction = intearction
+        self.bet = bet
+        self.label = label
+    async def callback(self,interaction):
+        result= await db.coinFlip(interaction.user.id, self.bet, self.label)
+        if (result):
+            await edit_coinflip_view_and_embed(self.intearction, self.bet, "You chose "+self.label+" and won "+str(self.bet))
+        else:
+            await edit_coinflip_view_and_embed(self.intearction, self.bet, "You chose "+self.label+" and lost "+str(self.bet))
+        await interaction.response.defer()
+    
+# Edit the view and embed of conflip to 
+async def edit_coinflip_view_and_embed(interaction:discord.Interaction, bet:int, text:str):
+    emded = discord.Embed(color=interaction.user.color, title="Flip coin for "+str(bet))
+    emded.add_field(name="", value=text, inline=False)
+    view = View()
+    view.add_item(back_button(interaction))
+    view.add_item(flip_coin_button(interaction,bet,"Heads"))
+    view.add_item(flip_coin_button(interaction,bet,"Tails"))
     await interaction.edit_original_response(view=view,embed=emded)
