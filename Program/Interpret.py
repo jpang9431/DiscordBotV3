@@ -1,3 +1,4 @@
+import csv
 import json
 import re
 import threading
@@ -18,6 +19,28 @@ specialCountFilePath = fileData["specialCountFile"]
 charCountFilePath = fileData["characterCountFile"]
 linkCountFilePath = fileData["linksFile"]
 pingGraph = fileData["pingGraph"]
+badWords = fileData["badWordFile"]
+JamesWords = fileData["JamesWords"]
+badWordsFilePath = fileData["badWordOutput"]
+JamesWordsFilePath = fileData["JamesWordsOutput"]
+
+badWordsList = []
+JamesWordsList = []
+
+with open(badWords, newline='') as file:
+    reader = csv.reader(file)
+    for lines in reader:
+        badWordsList.append(lines[0])
+    
+with open(JamesWords, newline='') as file:
+    reader = csv.reader(file)
+    for lines in reader:
+        JamesWordsList.append(lines[0])
+#Transfer words from a soruce ditionary to a target dictionary with the words being in the words list
+def transferWords(sourceDict, targetDict, words):
+    for word in words:
+        if (word in sourceDict):
+            targetDict[word] = sourceDict[word]
 
 #Adds a word to two dictionaries if not found otherwise increment by one, lowercase is wether the words should be made lowercase
 def addWordsToDictionary(dict, everyoneDict, words, lowercase=False):
@@ -62,6 +85,7 @@ def interpretMessage():
     userLink = dict()
     userLink["Everyone"] = dict()
     speical = "("
+    users = []
     with open(sepicalTextOutputFilePath, "r", encoding="utf8") as f:
         lines = f.readlines()
         for line in lines:
@@ -89,6 +113,7 @@ def interpretMessage():
             userChar[user] = dict()
             userWordsDictionary[user] = dict()
             userLink[user] = dict()
+            users.append(user)
         userSpeicalDict = userSpeical[user]
         userWordsDict = userWordsDictionary[user]
         userCharDict= userChar[user]
@@ -105,14 +130,30 @@ def interpretMessage():
         wordThread.join()
         charThread.join()
         linkThread.join()
+    badWordsDict = dict()
+    JamesWordsDict = dict()
+    for user in users:
+        userWordDict = userWordsDictionary[user]
+        userBadWordDict = dict()
+        userJamesWordDict = dict()
+        transferWords(userWordDict,userBadWordDict,badWordsList)
+        transferWords(userWordDict, userJamesWordDict,JamesWordsList)
+        badWordsDict[user] = userBadWordDict
+        JamesWordsDict[user] = userJamesWordDict
+    addBadWords = threading.Thread(target=writeToFileFromDict, args=(badWordsFilePath,badWordsDict))
+    addJamesWords = threading.Thread(target=writeToFileFromDict,args=(JamesWordsFilePath,JamesWordsDict))    
     addWords = threading.Thread(target=writeToFileFromDict, args=(wordCountFilePath, userWordsDictionary))
     addSpecials = threading.Thread(target=writeToFileFromDict, args=(specialCountFilePath, userSpeical))
     addChars = threading.Thread(target=writeToFileFromDict, args=(charCountFilePath, userChar))
     addLinks = threading.Thread(target=writeToFileFromDict, args=(linkCountFilePath, userLink))
+    addBadWords.start()
+    addJamesWords.start()
     addWords.start()
     addSpecials.start()
     addChars.start()
     addLinks.start()
+    addBadWords.join()
+    addJamesWords.join()
     addWords.join()
     addSpecials.join()
     addChars.join()

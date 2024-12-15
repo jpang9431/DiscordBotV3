@@ -9,7 +9,7 @@ import Database as db
 from dotenv import load_dotenv 
 import urllib.request
 import uuid
-from Bot_Ui import back_button, blackjack_hit_button, blackjack_stay_button, edit_coinflip_view_and_embed, edit_menu, flip_coin_button
+from Bot_Ui import back_button, blackjack_hit_button, blackjack_stay_button, edit_menu, flip_coin_button
 from Bot_Ui import edit_quest
 from Bot_Ui import edit_daily
 from Bot_Ui import edit_stock_market_view_and_embed
@@ -38,9 +38,11 @@ wordCountFilePath = fileData["wordCountFile"]
 specialCountFilePath = fileData["specialCountFile"]
 charCountFilePath = fileData["characterCountFile"]
 linkCountFilePath = fileData["linksFile"]
+badWordsFilePath = fileData["badWordOutput"]
+JamesWordsFilePath = fileData["JamesWordsOutput"]
 
 #List of all files
-files = [fullTextOutputFilePath, sepicalTextOutputFilePath, wordCountFilePath, specialCountFilePath, charCountFilePath, linkCountFilePath]
+files = [fullTextOutputFilePath, sepicalTextOutputFilePath, wordCountFilePath, specialCountFilePath, charCountFilePath, linkCountFilePath, badWordsFilePath, JamesWordsFilePath]
 
 #Prevents race condition for writing to document
 currentlyProcessing = False
@@ -371,6 +373,8 @@ async def getSpeicalCombinations(interaction: discord.Interaction, speicalEscape
         file.write(speicalEscapes[i]+","+regularReplace[i]+","+typeOfEscape[i]+"\n")
     file.close()    
 
+
+
 #Output all the information into a local txt
 @client.tree.command(name="outputtotxt", description="Output and parse data from a discord group")
 async def outputtotxt(interaction: discord.Interaction):
@@ -390,6 +394,7 @@ async def outputtotxt(interaction: discord.Interaction):
     filepath = fullTextOutputFilePath
     file = open(filepath, "w+", encoding="utf-8")
     totalTime = time.time()
+    #print(channels)
     for channel in channels:
         messagesInChannel = 0
         now = time.time()

@@ -7,5 +7,9 @@
     "pingGraph":"Data/PingGraph.json",
     "linksFile":"Data/Links.json",
     "database":"database.db",
-    "embedFolder":"Embed/"
+    "embedFolder":"Embed/",
+    "badWordFile":"Persistant_Data/Swear_Words.csv",
+    "JamesWords":"Persistant_Data/James_Workarounds.csv",
+    "badWordOutput":"Data/BadWord.json",
+    "JamesWordsOutput":"Data/JamesWords.json"
 }
