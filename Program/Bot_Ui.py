@@ -1,3 +1,4 @@
+import re
 import discord
 import json
 import Database as db
@@ -400,3 +401,35 @@ async def edit_coinflip_view_and_embed(interaction:discord.Interaction, bet:int,
     view.add_item(flip_coin_button(interaction,bet,"Heads"))
     view.add_item(flip_coin_button(interaction,bet,"Tails"))
     await interaction.edit_original_response(view=view,embed=emded)
+
+# Persistent dynamic button for role add/remove
+class role_button(discord.ui.DynamicItem[discord.ui.Button], template=r'button:role:(?P<id>[0-9]+)'):
+    def __init__(self, role_id: int, roleName: str):
+        super().__init__(
+            discord.ui.Button(
+                label=roleName,
+                style=discord.ButtonStyle.blurple,
+                custom_id=f'button:role:{role_id}'
+            )
+        )
+        self.role_id = role_id
+    
+    @classmethod
+    async def from_custom_id(cls, interaction: discord.Interaction, item: discord.ui.Button, match: re.Match[str], /):
+        role_id = int(match['id'])
+        role = interaction.guild.get_role(role_id)
+        return cls(role_id,role.name)
+
+    async def callback(self, interaction):
+        user = interaction.user
+        roles = user.roles
+        role = interaction.guild.get_role(self.role_id)
+        msg = role.name
+        if (role in roles):
+            await user.remove_roles(role)
+            msg += ' has been removed'
+        else:
+            await user.add_roles(role)
+            msg += ' has been added'
+        await interaction.response.send_message(msg,ephemeral=True)
+        
