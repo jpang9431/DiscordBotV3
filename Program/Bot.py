@@ -485,5 +485,13 @@ async def roleButton(interaction:discord.Interaction, text:str, roles:str):
             view.add_item(role_button(role_obj.id,role_obj.name))
     await interaction.response.send_message(text,view=view)
     
+    
+@client.tree.command(name="clear",description="Clear a number of messages")
+@app_commands.describe(count="The number of messages you want to delete")
+@app_commands.checks.has_permissions(administrator=True)
+async def clear(interaction:discord.Interaction,count:int):
+    channel = interaction.channel
+    await channel.purge(limit=count)
+    await interaction.response.send_message("Done",ephemeral=True)
 #Runs the bot token
 client.run(token)
