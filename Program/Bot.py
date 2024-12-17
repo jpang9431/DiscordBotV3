@@ -1,4 +1,5 @@
 import os
+import re
 import time
 import discord
 from discord import app_commands
@@ -9,7 +10,7 @@ import Database as db
 from dotenv import load_dotenv 
 import urllib.request
 import uuid
-from Bot_Ui import back_button, blackjack_hit_button, blackjack_stay_button, edit_menu, flip_coin_button
+from Bot_Ui import back_button, blackjack_hit_button, blackjack_stay_button, edit_menu, flip_coin_button, role_button
 from Bot_Ui import edit_quest
 from Bot_Ui import edit_daily
 from Bot_Ui import edit_stock_market_view_and_embed
@@ -51,24 +52,31 @@ files = [fullTextOutputFilePath, sepicalTextOutputFilePath, wordCountFilePath, s
 #Prevents race condition for writing to document
 currentlyProcessing = False
 
-#Necessary default bot stuff
-client = commands.Bot(command_prefix='!', intents=discord.Intents.all())
+class totally_not_a_gambling_bot(commands.Bot):
+    def __init__(self):
+        super().__init__(command_prefix='!', intents=discord.Intents.all())
+
+    async def setup_hook(self):
+        self.add_dynamic_items(role_button)
+
+    #Event trigger as soon as the program is run
+    async def on_ready(self):
+        await db.create_repository()
+        print("Online")
+        synced = await self.tree.sync()
+        print(len(synced))
+        await db.update_leader_board()
+        await updateLeaderBoardInterval()
+
+client = totally_not_a_gambling_bot()
 
 #Set up the leaderboard to update at ceratin periods of time
 async def updateLeaderBoardInterval():
     while True:
         await db.update_leader_board()
         await asyncio.sleep(3600)
-        
-#Event trigger as soon as the program is run
-@client.event
-async def on_ready():
-    await db.create_repository()
-    print("Online")
-    synced = await client.tree.sync()
-    print(len(synced))
-    await db.update_leader_board()
-    await updateLeaderBoardInterval()
+
+
     
 #Handle the bot being added to a new guild
 async def add_guild(guild):
@@ -451,5 +459,31 @@ async def coinflip(interaction:discord.Interaction, bet:int=0):
     view.add_item(flip_coin_button(interaction,bet,"Tails"))
     await interaction.response.send_message(view=view,embed=emded)
 
+#Create a button to allow for adding and removing role
+@client.tree.command(name="role_button",description="Create a button to add/remove a role")
+@app_commands.describe(text="The message you want sent with the button")
+@app_commands.describe(role="The role you want to be attacted to the button")
+async def roleButton(interaction:discord.Interaction, text:str, role:discord.Role):
+    view = View(timeout=None)
+    view.add_item(role_button(role.id,role.name))
+    await interaction.response.send_message(text,view=view)
+    
+#Create multiple buttons for adding and remvoning roles
+@client.tree.command(name="role_buttons",description="Create buttons to add/remove roles")
+@app_commands.describe(text="The message you want sent with the button")
+@app_commands.describe(roles="List of role ids seperated anything other than a number")
+async def roleButton(interaction:discord.Interaction, text:str, roles:str):
+    role_ids = re.findall(r'\d+',roles)
+    view = View(timeout=None)
+    guild = interaction.guild
+    for role in role_ids:
+        role_obj = guild.get_role(int(role))
+        if (role_obj==None):
+            await interaction.response.send_message(f"Role of id '{role}' could not be found", ephemeral=True)
+            return
+        else:
+            view.add_item(role_button(role_obj.id,role_obj.name))
+    await interaction.response.send_message(text,view=view)
+    
 #Runs the bot token
 client.run(token)
