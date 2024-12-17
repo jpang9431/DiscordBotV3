@@ -21,14 +21,17 @@ coinFlipChoices=["Heads","Tails"]
 #Load envrioment variables (currently unsued)
 load_dotenv() 
 
+#Home directory is the directory to the DiscordBotV3 folder + /
+home_directory = ""
+
 #Load the config.json file
-config = open("config.json")
+config = open(home_directory+"config.json")
 fileData = json.load(config)
 
 #Loads the database
-database = sqlite3.connect(fileData["database"])
+database = sqlite3.connect(home_directory+"user.db")
 cursor = database.cursor()
-global_connection = sqlite3.connect("global.db")
+global_connection = sqlite3.connect(home_directory+"global.db")
 global_cursor = global_connection.cursor()
 
 #Amount of time for cooldown in days

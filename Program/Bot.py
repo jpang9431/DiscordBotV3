@@ -21,25 +21,29 @@ import yfinance as yf
 import asyncio
 from Minigame import blackJack
 
+#Home directory is the directory to the DiscordBotV3 folder + /
+home_directory = ""
+
 #Loads the envrioment varaibles
 load_dotenv() 
 
 #Global variables
 token = os.getenv("token")
-config = open("config.json")
+config = open(home_directory+"config.json")
 fileData = json.load(config)
 
+
 #File paths for the output to txt raw files
-fullTextOutputFilePath = fileData["fullTextOutputFilePath"]
-sepicalTextOutputFilePath = fileData["sepicalTextOutputFilePath"]
+fullTextOutputFilePath = home_directory+fileData["fullTextOutputFilePath"]
+sepicalTextOutputFilePath = home_directory+fileData["sepicalTextOutputFilePath"]
 
 #File paths for the output to txt processed files
-wordCountFilePath = fileData["wordCountFile"]
-specialCountFilePath = fileData["specialCountFile"]
-charCountFilePath = fileData["characterCountFile"]
-linkCountFilePath = fileData["linksFile"]
-badWordsFilePath = fileData["badWordOutput"]
-JamesWordsFilePath = fileData["JamesWordsOutput"]
+wordCountFilePath = home_directory+fileData["wordCountFile"]
+specialCountFilePath = home_directory+fileData["specialCountFile"]
+charCountFilePath = home_directory+fileData["characterCountFile"]
+linkCountFilePath = home_directory+fileData["linksFile"]
+badWordsFilePath = home_directory+fileData["badWordOutput"]
+JamesWordsFilePath = home_directory+fileData["JamesWordsOutput"]
 
 #List of all files
 files = [fullTextOutputFilePath, sepicalTextOutputFilePath, wordCountFilePath, specialCountFilePath, charCountFilePath, linkCountFilePath, badWordsFilePath, JamesWordsFilePath]
