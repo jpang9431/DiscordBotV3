@@ -10,3 +10,8 @@ __pycache__
 database.db
 global.db
 user.db
+Raw\full.txt
+Data\JamesWords.json
+Data\BadWord.json
+JamesWords.json
+BadWord.json
