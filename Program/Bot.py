@@ -52,6 +52,9 @@ files = [fullTextOutputFilePath, sepicalTextOutputFilePath, wordCountFilePath, s
 #Prevents race condition for writing to document
 currentlyProcessing = False
 
+#List of command interactions that are waiting for a presence update from a user
+presenceUpate = {}
+
 class totally_not_a_gambling_bot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix='!', intents=discord.Intents.all())
@@ -88,6 +91,29 @@ async def add_guild(guild):
 @client.event
 async def on_guild_join(guild):
     await add_guild(guild)
+
+#Trigger on a user chaning presence
+@client.event
+async def on_presence_update(before:discord.Member, after:discord.Member):
+    if(str(before.status)=="offline" and str(after.status)!="offline"):
+        target = await client.fetch_user(after.id)
+        target_name = target.name
+        users = presenceUpate.get(after.id,[])
+        if (len(users)!=0):
+            for interaction in users:
+                await interaction.followup.send(interaction.user.mention+" "+target_name+" is online",ephemeral=True)
+            del presenceUpate[after.id]
+        #print(str(presenceUpate[after.id]))
+
+#Command to be pinged when a user gets online
+@client.tree.command(name="notify_when_user_online", description="Get notified when a user is online")
+@app_commands.describe(target="The user you want to be notified about")
+async def notify_when_user_online(interaction:discord.Interaction,target:discord.Member):
+    listOfNotifs = presenceUpate.get(target.id,[])
+    listOfNotifs.append(interaction)
+    presenceUpate[target.id] = listOfNotifs
+    await interaction.response.defer(ephemeral=True)
+    
 
 #Command to add new users to the db
 @client.tree.command(name="add_new_users", description="Add users not in the database")
@@ -493,5 +519,15 @@ async def clear(interaction:discord.Interaction,count:int):
     channel = interaction.channel
     await channel.purge(limit=count)
     await interaction.response.send_message("Done",ephemeral=True)
+
+#Ouput all custuom emjois in a guild
+@client.tree.command(name="output_emoji",description="output all emjois")
+async def output_emoji(interaction:discord.Interaction):
+    guild = interaction.guild
+    for emoji in guild.emojis:
+        await interaction.channel.send(emoji.name+":")
+        await interaction.channel.send("<:"+emoji.name+":"+str(emoji.id)+">")
+
+
 #Runs the bot token
 client.run(token)
