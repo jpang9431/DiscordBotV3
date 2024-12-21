@@ -10,3 +10,5 @@ __pycache__
 database.db
 global.db
 user.db
+BadWord.json
+JamesWords.json
