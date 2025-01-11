@@ -22,7 +22,7 @@ class back_button(discord.ui.Button):
         await interaction_reply_menu(self.interaction, interaction)
 
 #Handle the menu interaction
-async def interaction_reply_menu(origninal_interaction, current_interaction):
+async def interaction_reply_menu(origninal_interaction:discord.Interaction, current_interaction:discord.Interaction):
     user = current_interaction.user
     embed = discord.Embed(title=user.display_name, color = user.color)
     view = View()
