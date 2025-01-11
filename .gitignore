@@ -17,3 +17,4 @@ JamesWords.json
 BadWord.json
 Data\
 venv
+Program/__pycache__

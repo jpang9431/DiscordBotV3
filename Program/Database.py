@@ -3,6 +3,7 @@ import datetime
 import json
 import random 
 import datetime
+import dateutil
 import yfinance as yf
 from enum import Enum
 from dotenv import load_dotenv 
@@ -28,10 +29,11 @@ home_directory = ""
 config = open(home_directory+"config.json")
 file_data = json.load(config)
 
+
 #Loads the database
-database = sqlite3.connect(home_directory+"user.db")
+database = sqlite3.connect(home_directory+"Persistant_Data/user.db")
 cursor = database.cursor()
-global_connection = sqlite3.connect(home_directory+"global.db")
+global_connection = sqlite3.connect(home_directory+"Persistant_Data/global.db")
 global_cursor = global_connection.cursor()
 
 #Amount of time for cooldown in days
@@ -368,11 +370,10 @@ async def add_tag(user:int, name:str, text:str, image=""):
 async def coin_flip(user:int, bet:int, choice:str):
     await update_quests(user,3)
     win_choice=random.choice(coin_flip_choices)
-    print(bet)
-    print(win_choice)
     if (choice==win_choice):
         await update_points(user,bet)
     else:
         await update_points(user,bet*-1)
     return choice==win_choice
         
+
