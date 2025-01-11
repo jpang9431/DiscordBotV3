@@ -1,15 +1,15 @@
 {
-    "fullTextOutputFilePath":"Raw/full.txt",
-    "sepicalTextOutputFilePath":"Raw/special.txt",
-    "wordCountFile":"Data/WordCount.json",
-    "specialCountFile":"Data/Special.json",
-    "characterCountFile":"Data/CharacterCount.json",
-    "pingGraph":"Data/PingGraph.json",
-    "linksFile":"Data/Links.json",
+    "full_text_output_file_path":"Raw/full.txt",
+    "sepical_text_output_file_path":"Raw/special.txt",
+    "word_count_file":"Data/WordCount.json",
+    "special_count_file":"Data/Special.json",
+    "character_count_file":"Data/CharacterCount.json",
+    "ping_graph":"Data/PingGraph.json",
+    "links_file":"Data/Links.json",
     "database":"database.db",
-    "embedFolder":"Embed/",
-    "badWordFile":"Persistant_Data/Swear_Words.csv",
-    "JamesWords":"Persistant_Data/James_Workarounds.csv",
-    "badWordOutput":"Data/BadWord.json",
-    "JamesWordsOutput":"Data/JamesWords.json"
+    "embed_folder":"Embed/",
+    "bad_word_file":"Persistant_Data/Swear_Words.csv",
+    "James_words":"Persistant_Data/James_Workarounds.csv",
+    "bad_word_output":"Data/BadWord.json",
+    "James_words_output":"Data/JamesWords.json"
 }

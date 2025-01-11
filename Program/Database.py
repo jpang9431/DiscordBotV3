@@ -16,7 +16,7 @@ class label_index(Enum):
     user_id = 3
 
 #The two possible choices for a coin flip must match the button names
-coinFlipChoices=["Heads","Tails"]
+coin_flip_choices=["Heads","Tails"]
 
 #Load envrioment variables (currently unsued)
 load_dotenv() 
@@ -26,7 +26,7 @@ home_directory = ""
 
 #Load the config.json file
 config = open(home_directory+"config.json")
-fileData = json.load(config)
+file_data = json.load(config)
 
 #Loads the database
 database = sqlite3.connect(home_directory+"user.db")
@@ -350,7 +350,7 @@ async def update_tag(user:int, name:str, text:str, image=""):
         return "Tag updated sucessfully"
 
 #Adds a tag if it does not exist and returns any messages relating to the process
-async def addTag(user:int, name:str, text:str, image=""):
+async def add_tag(user:int, name:str, text:str, image=""):
     if (name==""):
         return "Please input the tag with the format of: name(space)text"
     if (text=="" and image==""):
@@ -365,9 +365,9 @@ async def addTag(user:int, name:str, text:str, image=""):
     
     
 #Determine and process a coin flip bet
-async def coinFlip(user:int, bet:int, choice:str):
+async def coin_flip(user:int, bet:int, choice:str):
     await update_quests(user,3)
-    winChoice=random.choice(coinFlipChoices)
+    winChoice=random.choice(coin_flip_choices)
     print(bet)
     print(winChoice)
     if (choice==winChoice):

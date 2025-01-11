@@ -31,23 +31,24 @@ load_dotenv()
 #Global variables
 token = os.getenv("token")
 config = open(home_directory+"config.json")
-fileData = json.load(config)
+file_data = json.load(config)
 
 
 #File paths for the output to txt raw files
-fullTextOutputFilePath = home_directory+fileData["fullTextOutputFilePath"]
-sepicalTextOutputFilePath = home_directory+fileData["sepicalTextOutputFilePath"]
+full_text_output_file_path = home_directory+file_data["full_text_output_file_path"]
+sepical_text_output_file_path = home_directory+file_data["sepical_text_output_file_path"]
 
 #File paths for the output to txt processed files
-wordCountFilePath = home_directory+fileData["wordCountFile"]
-specialCountFilePath = home_directory+fileData["specialCountFile"]
-charCountFilePath = home_directory+fileData["characterCountFile"]
-linkCountFilePath = home_directory+fileData["linksFile"]
-badWordsFilePath = home_directory+fileData["badWordOutput"]
-JamesWordsFilePath = home_directory+fileData["JamesWordsOutput"]
+word_count_file = home_directory+file_data["word_count_file"]
+special_count_file = home_directory+file_data["specialCountFile"]
+character_count_file = home_directory+file_data["characterCountFile"]
+links_file = home_directory+file_data["linksFile"]
+bad_word_output = home_directory+file_data["bad_word_output"]
+James_words_output = home_directory+file_data["James_words_output"]
 
 #List of all files
-files = [fullTextOutputFilePath, sepicalTextOutputFilePath, wordCountFilePath, specialCountFilePath, charCountFilePath, linkCountFilePath, badWordsFilePath, JamesWordsFilePath]
+files = [full_text_output_file_path, sepical_text_output_file_path, word_count_file, special_count_file, 
+         character_count_file, links_file, bad_word_output, James_words_output]
 
 #Prevents race condition for writing to document
 currentlyProcessing = False
@@ -69,17 +70,15 @@ class totally_not_a_gambling_bot(commands.Bot):
         synced = await self.tree.sync()
         print(len(synced))
         await db.update_leader_board()
-        await updateLeaderBoardInterval()
+        await update_leader_board_interval()
 
 client = totally_not_a_gambling_bot()
 
 #Set up the leaderboard to update at ceratin periods of time
-async def updateLeaderBoardInterval():
+async def update_leader_board_interval():
     while True:
         await db.update_leader_board()
         await asyncio.sleep(3600)
-
-
     
 #Handle the bot being added to a new guild
 async def add_guild(guild):
@@ -376,7 +375,7 @@ async def getRoleIds(interaction: discord.Interaction):
 #Get all sepcial discord escape seuqences
 async def getSpeicalCombinations(interaction: discord.Interaction, speicalEscapes, regularReplace,typeOfEscape):
     guild = interaction.guild
-    filePath = sepicalTextOutputFilePath
+    filePath = sepical_text_output_file_path
     await interaction.response.send_message("Started")
     file = open(filePath, "w", encoding="utf-8")
     total = 0
@@ -429,7 +428,7 @@ async def outputtotxt(interaction: discord.Interaction):
     await getSpeicalCombinations(interaction, speicalEscapes, regularReplace, typeOfEscape)
     channels = guild.text_channels
     count = 0
-    filepath = fullTextOutputFilePath
+    filepath = full_text_output_file_path
     file = open(filepath, "w+", encoding="utf-8")
     totalTime = time.time()
     #print(channels)
