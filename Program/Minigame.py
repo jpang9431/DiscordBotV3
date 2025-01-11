@@ -2,7 +2,7 @@ import random
 import itertools
 
 #Turns the value of the card to the name of the card
-def interpretCard(card):
+def interpret_card(card):
     msg = " of "+card[1]
     faceCard = ["J","Q","K"]
     if (card[0]>10):
@@ -14,7 +14,7 @@ def interpretCard(card):
     return msg + "\n"
 
 #calcaluates the hand value
-def calcHandValue(hand):
+def calc_hand_value(hand):
     value = 0
     numAces = 0
     for card in hand:
@@ -35,41 +35,41 @@ class blackJack():
     def __init__(self):
         self.deck = list(itertools.product(range(1,14),['Spade','Heart','Diamond','Club']))
         random.shuffle(self.deck)
-        self.cardPointer = 0
-        self.dealerHand = []
-        self.playerHand = []
-        self.stringDealerHand = ""
-        self.stringPlayerHand = ""
+        self.card_pointer = 0
+        self.dealer_hand = []
+        self.player_hand = []
+        self.string_dealer_hand = ""
+        self.string_player_hand = ""
         for i in range(2):
-            self.dealerHand.append(self.deck[self.cardPointer])
-            self.cardPointer+=1
-            self.stringDealerHand+=interpretCard(self.dealerHand[i])
-            self.playerHand.append(self.deck[self.cardPointer])
-            self.stringPlayerHand+=interpretCard(self.playerHand[i])
-            self.cardPointer+=1
+            self.dealer_hand.append(self.deck[self.card_pointer])
+            self.card_pointer+=1
+            self.string_dealer_hand+=interpret_card(self.dealer_hand[i])
+            self.player_hand.append(self.deck[self.card_pointer])
+            self.string_player_hand+=interpret_card(self.player_hand[i])
+            self.card_pointer+=1
     def hit(self):
-        self.playerHand.append(self.deck[self.cardPointer])
-        self.stringPlayerHand+=interpretCard(self.playerHand[len(self.playerHand)-1])
-        self.cardPointer+=1
-        return calcHandValue(self.playerHand)
+        self.player_hand.append(self.deck[self.card_pointer])
+        self.string_player_hand+=interpret_card(self.player_hand[len(self.player_hand)-1])
+        self.card_pointer+=1
+        return calc_hand_value(self.player_hand)
     def stay(self):
-        dealerHandValue = calcHandValue(self.dealerHand)
-        playerHandValue = calcHandValue(self.playerHand)
-        while(dealerHandValue<=playerHandValue and dealerHandValue<21):
-            self.dealerHand.append(self.deck[self.cardPointer])
-            self.stringDealerHand+=interpretCard(self.dealerHand[len(self.dealerHand)-1])
-            self.cardPointer+=1
-            dealerHandValue = calcHandValue(self.dealerHand)
-        return [playerHandValue, dealerHandValue]
-    def getPlayerHandValue(self):
-        return calcHandValue(self.playerHand)
-    def getDealerHandValue(self):
-        return calcHandValue(self.dealerHand)
+        dealer_handValue = calc_hand_value(self.dealer_hand)
+        player_handValue = calc_hand_value(self.player_hand)
+        while(dealer_handValue<=player_handValue and dealer_handValue<21):
+            self.dealer_hand.append(self.deck[self.card_pointer])
+            self.string_dealer_hand+=interpret_card(self.dealer_hand[len(self.dealer_hand)-1])
+            self.card_pointer+=1
+            dealer_handValue = calc_hand_value(self.dealer_hand)
+        return [player_handValue, dealer_handValue]
+    def get_player_hand_value(self):
+        return calc_hand_value(self.player_hand)
+    def get_dealer_hand_value(self):
+        return calc_hand_value(self.dealer_hand)
     
     
-def flipCoin(value:int, bet=0):
-    headTail = random.randint(0,1)
-    if (value==headTail):
+def flip_coin(value:int, bet=0):
+    head_tail = random.randint(0,1)
+    if (value==head_tail):
         return bet*2
     else:
         return 0

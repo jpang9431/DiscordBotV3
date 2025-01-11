@@ -53,13 +53,13 @@ class claim_quests_button(discord.ui.Button):
         super().__init__(label=label, style=discord.ButtonStyle.blurple)
         self.interaction = interaction
     async def callback(self,interaction:discord.Interaction):
-        pointsGained = await db.claim_quests(interaction.user.id)
-        await db.update_points(interaction.user.id, pointsGained)
+        points_gained = await db.claim_quests(interaction.user.id)
+        await db.update_points(interaction.user.id, points_gained)
         user = interaction.user
         embed = discord.Embed(title=user.display_name, color = user.color)
         view = View()
         await edit_quest(view, embed, user, self.interaction)
-        embed.add_field(name="Reward", value="You gained "+str(pointsGained)+" points", inline=False)
+        embed.add_field(name="Reward", value="You gained "+str(points_gained)+" points", inline=False)
         await self.interaction.edit_original_response(view=view, embed=embed)
         await interaction.response.defer()
 
@@ -88,7 +88,7 @@ class reset_quests_button(discord.ui.Button):
         super().__init__(label="Replace All Quets", style=discord.ButtonStyle.blurple)
         self.interaction = interaction
     async def callback(self, interaction:discord.Interaction):
-        user=  interaction.user
+        user = interaction.user
         embed = discord.Embed(title=user.display_name, color = user.color)
         view = View()
         if (await db.check_quest_cooldown(interaction.user.id)):
@@ -119,11 +119,11 @@ async def interpret_quest(quest):
 async def edit_quest(view:discord.ui.View, embed:discord.Embed, user:discord.User, interaction):
     if (not user.avatar == None):
         embed.set_thumbnail(url=user.avatar.url)
-    questList = await db.get_quests(user.id)
-    textQuests = ""
-    for quest in questList:
-        textQuests+=await interpret_quest(quest)
-    embed.add_field(name="Quests", value=textQuests)
+    quest_list = await db.get_quests(user.id)
+    text_quests = ""
+    for quest in quest_list:
+        text_quests+=await interpret_quest(quest)
+    embed.add_field(name="Quests", value=text_quests)
     view.add_item(back_button(interaction))
     view.add_item(claim_quests_button(interaction, "Claim Quest"))
     view.add_item(get_new_quests_button(interaction))
@@ -173,11 +173,11 @@ class buy_shares(discord.ui.Button):
         points = await db.get_points(user.id)
         stock_ticker = yf.Ticker(self.ticker)
         stock_ticker_info = stock_ticker.info
-        canAfford = points>=stock_ticker_info["ask"]*self.amount
-        if (canAfford):
+        can_afford = points>=stock_ticker_info["ask"]*self.amount
+        if (can_afford):
             await db.update_stock(user.id, stock_ticker_info, "Buy", self.amount)
         await edit_stock_market_view_and_embed(view, embed, self.ticker, user, self.interaction, self.amount)
-        if (canAfford):
+        if (can_afford):
             embed.add_field(name="Action Result", value="Sucessfully bought "+str(self.amount)+" of "+stock_ticker_info["shortName"], inline=False)
         else:
             embed.add_field(name="Action Result", value="Too poor to afford the stocks", inline=False)
@@ -219,15 +219,15 @@ async def edit_stock_market_view_and_embed(view:discord.ui.View, embed:discord.E
     msg += "Buy Price: "+str(info["ask"])+"\n"
     msg += "Sell Price: "+str(info["bid"])
     embed.add_field(name=info["shortName"]+" ("+ticker+")", value=msg, inline=False)
-    numShares = await db.get_amount_of_stock(user.id, ticker)
-    userDataMsg = "Points Balance: "+str(await db.get_points(user.id))+"\n"
-    if (not numShares):
-        userDataMsg += "Owned Shares: 0\n"
-        userDataMsg += "Total Value: 0\n"
+    num_shares = await db.get_amount_of_stock(user.id, ticker)
+    user_data_msg = "Points Balance: "+str(await db.get_points(user.id))+"\n"
+    if (not num_shares):
+        user_data_msg += "Owned Shares: 0\n"
+        user_data_msg += "Total Value: 0\n"
     else:
-        userDataMsg += "Owned Shares: "+str(numShares)+"\n"
-        userDataMsg += "Total Value: "+str(int(numShares)*info["bid"])+"\n"
-    embed.add_field(name="User Data", value=userDataMsg)
+        user_data_msg += "Owned Shares: "+str(num_shares)+"\n"
+        user_data_msg += "Total Value: "+str(int(num_shares)*info["bid"])+"\n"
+    embed.add_field(name="User Data", value=user_data_msg)
     view.add_item(back_button(interaction))
     view.add_item(buy_shares(interaction, amount, ticker))
     view.add_item(sell_shares(interaction, amount, ticker))
@@ -250,12 +250,12 @@ class refresh_stocks(discord.ui.Button):
 async def edit_stock_view_and_embed(view:discord.ui.View, embed:discord.Embed, user:discord.User, interaction:discord.Interaction):
     data = await db.get_stocks(user.id)
     msg = ""
-    totalStockValue = 0
+    total_stock_value = 0
     for key, value in data.items():
         info = yf.Ticker(key).info
         msg += info["shortName"]+" ("+key+") | Amount: "+str(value)+" | Value: "+str(value*info["bid"])+"\n"
-        totalStockValue += value*info["bid"]
-    await db.setStockValue(user.id, totalStockValue)
+        total_stock_value += value*info["bid"]
+    await db.setStockValue(user.id, total_stock_value)
     embed.add_field(name="Owned Stocks", value=msg)
     if (not user.avatar == None):
         embed.set_thumbnail(url=user.avatar.url)
@@ -278,29 +278,29 @@ class refresh_leaderboard(discord.ui.Button):
 #Edit leaderboard with new information   
 async def edit_leaderboard(view:discord.ui.View, embed:discord.Embed, user:discord.User, interaction:discord.Interaction):
     leaderboard = json.loads(await db.get_leader_board())
-    userData = await db.get_user_data(user.id)
+    user_data = await db.get_user_data(user.id)
     lastUpdate = await db.get_last_update()
     if (not user.avatar == None):
         embed.set_thumbnail(url=user.avatar.url)
-    embed.add_field(name="Username and Total", value=leaderboard[0]+"\n"+str(userData[0])+"."+userData[1])
-    embed.add_field(name="Total", value=leaderboard[1]+"\n"+str(userData[2]))
-    embed.add_field(name="Points|Stocks", value=leaderboard[2]+"\n"+str(userData[3])+"|"+str(userData[4]))
+    embed.add_field(name="Username and Total", value=leaderboard[0]+"\n"+str(user_data[0])+"."+user_data[1])
+    embed.add_field(name="Total", value=leaderboard[1]+"\n"+str(user_data[2]))
+    embed.add_field(name="Points|Stocks", value=leaderboard[2]+"\n"+str(user_data[3])+"|"+str(user_data[4]))
     embed.set_footer(text="Last Updated: "+lastUpdate)
     view.add_item(back_button(interaction))
     view.add_item(refresh_leaderboard(interaction,"Refresh Leaderboard"))
     
 #Function to edit the view and embed depdent on how the game ends
-async def end_blackjack(orgInteraction:discord.Interaction, interaction:discord.Interaction, bet:int, blackjack:blackJack, text:str):
+async def end_blackjack(original_interaction:discord.Interaction, interaction:discord.Interaction, bet:int, blackjack:blackJack, text:str):
     emded = discord.Embed(color=interaction.user.color, title="Blackjack but worse")
     emded.add_field(name="", value=text, inline=False)
-    emded.add_field(name="**Player Hand: "+str(blackjack.getPlayerHandValue())+"**", value=blackjack.stringPlayerHand, inline=False)
+    emded.add_field(name="**Player Hand: "+str(blackjack.getplayer_hand_value())+"**", value=blackjack.stringPlayerHand, inline=False)
     emded.add_field(name="**Dealer Hand: "+str(blackjack.getDealerHandValue())+"**", value=blackjack.stringDealerHand, inline=False)
     view = View()
-    view.add_item(back_button(orgInteraction))
-    view.add_item(play_blackjack_button(orgInteraction, "Play again bet "+str(bet), bet))
-    view.add_item(play_blackjack_button(orgInteraction, "Play again bet 0", 0))
+    view.add_item(back_button(original_interaction))
+    view.add_item(play_blackjack_button(original_interaction, "Play again bet "+str(bet), bet))
+    view.add_item(play_blackjack_button(original_interaction, "Play again bet 0", 0))
     await db.update_quests(interaction.user.id,quest_dict["Blackjack"])
-    await orgInteraction.edit_original_response(view=view,embed=emded)
+    await original_interaction.edit_original_response(view=view,embed=emded)
     
 # Menu button to play a game of blackjack 
 class play_blackjack_button(discord.ui.Button):
@@ -349,8 +349,8 @@ class blackjack_hit_button(discord.ui.Button):
         if (self.interaction.user.id!=interaction.user.id):
             await interaction.response.defer()
             return
-        playerHandValue = self.blackjack.hit()
-        if (playerHandValue>21):
+        player_hand_value = self.blackjack.hit()
+        if (player_hand_value>21):
             await end_blackjack(self.interaction, interaction, self.bet, self.blackjack, "You busted (went over 21). You lose "+str(self.bet)+".")
         else:
             await edt_blackjack_view_and_embed(self.interaction, self.blackjack, self.bet)
@@ -359,8 +359,8 @@ class blackjack_hit_button(discord.ui.Button):
 # Edit the view and embed to display blackjack
 async def edt_blackjack_view_and_embed(interaction:discord.Interaction, blackjack:blackJack, bet:int):
     emded = discord.Embed(color=interaction.user.color, title="Blackjack but worse")
-    emded.add_field(name="**Player Hand:"+str(blackjack.getPlayerHandValue())+"**", value=blackjack.stringPlayerHand, inline=False)
-    emded.add_field(name="**Dealer Hand:"+str(blackjack.getDealerHandValue())+"**", value=blackjack.stringDealerHand, inline=False)
+    emded.add_field(name="**Player Hand:"+str(blackjack.get_player_hand_value())+"**", value=blackjack.stringPlayerHand, inline=False)
+    emded.add_field(name="**Dealer Hand:"+str(blackjack.get_dealer_hand_value())+"**", value=blackjack.stringDealerHand, inline=False)
     view = View()
     view.add_item(back_button(interaction))
     view.add_item(blackjack_stay_button(interaction, blackjack, bet))

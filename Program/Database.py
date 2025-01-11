@@ -66,7 +66,7 @@ quest_dict = {
 
 #Get last leaderboard upate
 async def get_last_update():
-    global_cursor.execute("SELECT lastUpdate FROM globalData")    
+    global_cursor.execute("SELECT lastUpdate FROM global_data")    
     return global_cursor.fetchone()[0]
 
 #Calculate stock value
@@ -80,25 +80,25 @@ async def calc_stock_value(data):
 #Update leadebord
 async def update_leader_board():
     cursor.execute("SELECT stock_dicts, id FROM stocks")
-    stockData = cursor.fetchall()
+    stock_data = cursor.fetchall()
     count = 0
-    for row in stockData:
+    for row in stock_data:
         amount = round(await calc_stock_value(json.loads(row[0])), 2)
         await update_total_and_stock(row[1],amount)
     cursor.execute("SELECT username, total, points, stock_value, id FROM users ORDER BY total DESC")
     users = cursor.fetchall()
-    userNames = ""
+    user_names = ""
     totals = ""
-    pointsAndStocks = ""
+    points_andS_socks = ""
     for row in users:
         count += 1
-        userNames += str(count)+"."+row[0]+"\n"
+        user_names += str(count)+"."+row[0]+"\n"
         totals += str(row[1])+"\n"
-        pointsAndStocks += str(row[2])+"|"+str(row[3])+"\n"
+        points_andS_socks += str(row[2])+"|"+str(row[3])+"\n"
         cursor.execute("UPDATE users SET placement=? WHERE id=?",(count,row[4]))
         database.commit()
-    leaderBoard = json.dumps([userNames, totals, pointsAndStocks])
-    global_cursor.execute("UPDATE globalData SET leaderboard=?, lastUpdate=?",(leaderBoard,str(datetime.datetime.now())))
+    leaderBoard = json.dumps([user_names, totals, points_andS_socks])
+    global_cursor.execute("UPDATE global_data SET leaderboard=?, lastUpdate=?",(leaderBoard,str(datetime.datetime.now())))
     global_connection.commit()
 
 #Method to update toatla and stock value
@@ -110,7 +110,7 @@ async def update_total_and_stock(id:int, stockAmount:int):
 
 #Get the last saved leaderboard
 async def get_leader_board():
-    global_cursor.execute("SELECT leaderboard FROM globalData")
+    global_cursor.execute("SELECT leaderboard FROM global_data")
     return global_cursor.fetchone()[0]
 
 #Get the row of user data from a user id
@@ -214,10 +214,10 @@ async def create_repository():
     cursor.execute("CREATE TABLE IF NOT EXISTS quests(id INT PRIMARY KEY,quest1 TEXT, quest2 TEXT, quest3 TEXT)")
     cursor.execute("CREATE TABLE IF NOT EXISTS users(id INT PRIMARY KEY, points REAL, stock_value REAL, total REAL, username TEXT, placement INT)")
     cursor.execute("CREATE TABLE IF NOT EXISTS stocks(id INT PRIMARY KEY, stock_dicts TEXT, transactions TEXT)")
-    global_cursor.execute("CREATE TABLE IF NOT EXISTS globalData(leaderboard TEXT, users INT, lastUpdate TEXT)")
-    global_cursor.execute("SELECT * FROM globalData")
+    global_cursor.execute("CREATE TABLE IF NOT EXISTS global_data(leaderboard TEXT, users INT, lastUpdate TEXT)")
+    global_cursor.execute("SELECT * FROM global_data")
     if(global_cursor.fetchone() is None):   
-        global_cursor.execute("INSERT INTO globalData VALUES(?,?,?)",("",0,str(datetime.datetime.now())))
+        global_cursor.execute("INSERT INTO global_data VALUES(?,?,?)",("",0,str(datetime.datetime.now())))
         global_connection.commit()
     
     
@@ -225,12 +225,12 @@ async def create_repository():
 async def insert_new_user_if_no_exists(id:int,name:str):
     cursor.execute("SELECT * FROM users WHERE id=?",(id,))
     if(cursor.fetchone() is None):
-        global_cursor.execute("SELECT users FROM globalData")
-        numUsers = global_cursor.fetchone()[0]
-        numUsers+=1        
-        global_cursor.execute("UPDATE globalData SET users = ? ",(numUsers,))
+        global_cursor.execute("SELECT users FROM global_data")
+        num_users = global_cursor.fetchone()[0]
+        num_users+=1        
+        global_cursor.execute("UPDATE global_data SET users = ? ",(num_users,))
         global_connection.commit()
-        cursor.execute("INSERT INTO users VALUES(?,?,?,?,?,?)",(id,0,0,0,name,numUsers))
+        cursor.execute("INSERT INTO users VALUES(?,?,?,?,?,?)",(id,0,0,0,name,num_users))
         cursor.execute("INSERT INTO cooldown VALUES(?,?,?)",(id,default_date,default_date))
         cursor.execute("INSERT INTO quests VALUES(?,?,?,?)",(id,get_new_quest(),get_new_quest(),get_new_quest()))
         cursor.execute("INSERT INTO stocks VALUES(?,?,?)",(id, "{}", "[]"))
@@ -367,12 +367,12 @@ async def add_tag(user:int, name:str, text:str, image=""):
 #Determine and process a coin flip bet
 async def coin_flip(user:int, bet:int, choice:str):
     await update_quests(user,3)
-    winChoice=random.choice(coin_flip_choices)
+    win_choice=random.choice(coin_flip_choices)
     print(bet)
-    print(winChoice)
-    if (choice==winChoice):
+    print(win_choice)
+    if (choice==win_choice):
         await update_points(user,bet)
     else:
         await update_points(user,bet*-1)
-    return choice==winChoice
+    return choice==win_choice
         
