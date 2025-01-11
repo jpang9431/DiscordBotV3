@@ -371,7 +371,7 @@ async def edt_blackjack_view_and_embed(interaction:discord.Interaction, blackjac
 class play_coin_flip_button(discord.ui.Button):
     def __init__(self, intearction, label:str):
         super().__init__(label=label, style=discord.ButtonStyle.blurple)
-        self.intearction = intearction
+        self.intearction=intearction
     async def callback(self,intearction):
         print("?")
         await edit_coinflip_view_and_embed(self.intearction,0,"")   
@@ -385,7 +385,7 @@ class flip_coin_button(discord.ui.Button):
         self.bet = bet
         self.label = label
     async def callback(self,interaction):
-        result= await db.coinFlip(interaction.user.id, self.bet, self.label)
+        result = await db.coin_flip(interaction.user.id, self.bet, self.label)
         if (result):
             await edit_coinflip_view_and_embed(self.intearction, self.bet, "You chose "+self.label+" and won "+str(self.bet))
         else:
@@ -407,9 +407,9 @@ class role_button(discord.ui.DynamicItem[discord.ui.Button], template=r'button:r
     def __init__(self, role_id: int, roleName: str):
         super().__init__(
             discord.ui.Button(
-                label=roleName,
-                style=discord.ButtonStyle.blurple,
-                custom_id=f'button:role:{role_id}'
+                label = roleName,
+                style = discord.ButtonStyle.blurple,
+                custom_id = f'button:role:{role_id}'
             )
         )
         self.role_id = role_id

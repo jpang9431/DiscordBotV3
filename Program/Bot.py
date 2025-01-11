@@ -40,9 +40,9 @@ sepical_text_output_file_path = home_directory+file_data["sepical_text_output_fi
 
 #File paths for the output to txt processed files
 word_count_file = home_directory+file_data["word_count_file"]
-special_count_file = home_directory+file_data["specialCountFile"]
-character_count_file = home_directory+file_data["characterCountFile"]
-links_file = home_directory+file_data["linksFile"]
+special_count_file = home_directory+file_data["special_count_file"]
+character_count_file = home_directory+file_data["character_count_file"]
+links_file = home_directory+file_data["links_file"]
 bad_word_output = home_directory+file_data["bad_word_output"]
 James_words_output = home_directory+file_data["James_words_output"]
 
