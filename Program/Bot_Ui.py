@@ -432,4 +432,25 @@ class role_button(discord.ui.DynamicItem[discord.ui.Button], template=r'button:r
             await user.add_roles(role)
             msg += ' has been added'
         await interaction.response.send_message(msg,ephemeral=True)
-        
+
+#Button to add one's self to an event
+class event_button(discord.ui.DynamicItem[discord.ui.Button], template=r'button:event:(?P<id>\S+)'):
+    def __init__(self, event_id:str):
+        super().__init__(
+            discord.ui.Button(
+                label = "Click to add youself to the event",
+                style = discord.ButtonStyle.blurple,
+                custom_id = f'button:event:{event_id}'
+            )
+        )
+        self.event_id = event_id
+    
+    @classmethod
+    async def from_custom_id(cls, interaction: discord.Interaction, item: discord.ui.Button, match: re.Match[str], /):
+        event_id = match['id']  
+        return cls(event_id)
+    
+    async def callback(self, interaction:discord.Interaction):
+        user = interaction.user
+        result = await db.add_Participant(self.event_id, user.id)
+    
