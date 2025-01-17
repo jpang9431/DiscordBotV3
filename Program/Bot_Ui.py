@@ -453,4 +453,5 @@ class event_button(discord.ui.DynamicItem[discord.ui.Button], template=r'button:
     async def callback(self, interaction:discord.Interaction):
         user = interaction.user
         result = await db.add_Participant(self.event_id, user.id)
-    
+        await interaction.response.send_message(content=result, ephemeral=True)
+

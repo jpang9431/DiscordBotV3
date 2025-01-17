@@ -11,6 +11,7 @@ from Database import event_data_index
 from dotenv import load_dotenv 
 import urllib.request
 import uuid
+import Bot_Ui as ui
 from Bot_Ui import back_button, blackjack_hit_button, blackjack_stay_button, edit_menu, flip_coin_button, role_button
 from Bot_Ui import edit_quest
 from Bot_Ui import edit_daily
@@ -24,6 +25,23 @@ import asyncio
 from Minigame import blackJack
 from datetime import datetime
 import dateutil
+import datetime
+from datetime import datetime
+import pytz
+from datetime import timedelta
+import asyncio
+from apscheduler.schedulers.background import BackgroundScheduler
+import pytz
+import uuid
+from asyncio import run
+from apscheduler.triggers.date import DateTrigger
+
+#All the event scheulding variables 
+now = datetime.now()
+current_date_processing:datetime = datetime(year=now.year, month=now.month, day=now.day, hour=23, tzinfo=pytz.timezone("UTC"))
+next_date = timedelta(days=1)
+scheduler = BackgroundScheduler()
+
 
 #Home directory is the directory to the DiscordBotV3 folder + /
 home_directory = ""
@@ -77,6 +95,7 @@ class totally_not_a_gambling_bot(commands.Bot):
         print(len(synced))
         await db.update_leader_board()
         await update_leader_board_interval()
+        await add_events()
 
 client = totally_not_a_gambling_bot()
 
@@ -558,12 +577,17 @@ async def set_timediff(interaction:discord.Interaction, hours:int, minutes:int):
 @app_commands.describe(minute="The number of minutes where it is in the range of [0,59]")
 @app_commands.describe(next_repeat="The next time you want this to repeat, foramt it as yyyy-mm-dd, leave it blank if you do not want it to repeat and skip the next paramter")
 @app_commands.describe(end_date="The date you want the repeats to end, leave blank if you want it to repeat forever")
-async def create_event(interaction:discord.Interaction,channel_id:int,title:str,description:str,year:int,month:int,day:int,hour:int,minute:int,next_repeat:str="",end_date:str=""):
+async def create_event(interaction:discord.Interaction,channel_id:str,title:str,description:str,year:int,month:int,day:int,hour:int,minute:int,next_repeat:str="",end_date:str=""):
+    try:
+        channel_id = int(channel_id)
+    except:
+        await interaction.response.send_message("Error, you have to input a valid number")
+        return
     if (len(description)>max_characters):
         await interaction.response.send_message("The description must be less than 1024 charactesr", ephemeral=True)
         return
     try:
-        interaction.guild.fetch_channel(channel_id)
+        await interaction.guild.fetch_channel(channel_id)
     except:
         await interaction.response.send_message("Enter in a valid channel that is a channel in the guild you are currently running the command in", ephemeral=True)
         return
@@ -571,42 +595,57 @@ async def create_event(interaction:discord.Interaction,channel_id:int,title:str,
     if (time_diff == None):
         await interaction.response.send_message("Please set your time zone difference using /set_time_diff") 
         return
+    date = None
     try:
-        date = datetime(year=year, month=month, day=day, hour=hour, minute=minute) + time_diff
-        future = await db.check_future(date)
-        if (not future):
-            await interaction.response.send_message("Enter a date that is in the future", ephemeral=True)
-        else:
-            if (not next_repeat == ""):
-                try:
-                    datetime.fromisoformat(next_repeat)
-                except:
-                    await interaction.response.send_message("Enter a valid next repeat date", ephemeral=True)
-                    return
-                if (not end_date == ""):
-                    try:
-                        repeat_end_date = datetime.fromisoformat(end_date) + time_diff
-                        end_date = repeat_end_date.isoformat(sep="T", timespec="auto")
-                        if (end_date<date):
-                            await interaction.response.send_message("Enter an end date that is in the future when compared to the start event date", ephemeral=True)
-                            return
-                    except:
-                        await interaction.response.send_message("Enter a valid end date", ephemeral=True)
-                        return
-            await db.add_event(date=date.isoformat(sep="T", timespec="auto"), title=title, description=description, end_date=end_date, next_repeat=next_repeat, guild=interaction.guild.id, channel=channel_id)     
-            await interaction.response.send_message("The event was added sucessfully", ephemeral=True)
+        date = datetime(year=year, month=month, day=day, hour=hour, minute=minute) - time_diff
     except:
         await interaction.response.send_message("The date entered is invalid",ephemeral=True)
+        return
+    future = await db.check_future(date)
+    if (not future):
+        await interaction.response.send_message("Enter a date that is in the future", ephemeral=True)
+    else:
+        if (not next_repeat == ""):
+            try:
+                datetime.fromisoformat(next_repeat)
+            except:
+                await interaction.response.send_message("Enter a valid next repeat date", ephemeral=True)
+                return
+            if (not end_date == ""):
+                try:
+                    repeat_end_date = datetime.fromisoformat(end_date) + time_diff
+                    end_date = repeat_end_date.isoformat(sep="T", timespec="auto")
+                    if (end_date<date):
+                        await interaction.response.send_message("Enter an end date that is in the future when compared to the start event date", ephemeral=True)
+                        return
+                except:
+                    await interaction.response.send_message("Enter a valid end date", ephemeral=True)
+                    return     
+        await interaction.response.send_message("The event was added sucessfully", ephemeral=True)
+        event_id = str(uuid.uuid4())
+        await db.add_event(date=date.isoformat(sep="T", timespec="auto"), title=title, description=description, end_date=end_date, next_repeat=next_repeat, guild=interaction.guild.id, channel=channel_id, event_id=event_id, owner=interaction.user.id)
+        if (str(date.date)==str(current_date_processing.date) or str(date.date)==str((current_date_processing-next_date).date)):
+            if (scheduler.get_job(str(event_id))==None):
+                scheduler.add_job(func=lambda: run(process_event(event_id)), trigger=DateTrigger(run_date=date, timezone=pytz("UTC")), misfire_grace_time=None)
+        
+
+async def add_events():
+    events = db.get_events_by_date(date=current_date_processing.date())
+    for event in events:
+        event_id = event[db.event_data_index.event_id.value]
+        if (scheduler.get_job(event_id)==None):
+            scheduler.add_job(func=lambda: run(process_event(event_id)), trigger=DateTrigger(run_date=datetime.fromisoformat(event[db.event_data_index.event_date.value]), timezone=pytz("UTC")), misfire_grace_time=None)
+    scheduler.add_job(func=lambda: run(add_events()), trigger=DateTrigger(run_date=current_date_processing, timezone=pytz("UTC")), misfire_grace_time=None)
+    current_date_processing = current_date_processing + next_date
+    scheduler.print_jobs()
+
 
 async def process_event(event_id:str):
     event = db.process_event(event_id=event_id)
-    owner:discord.User = client.fetch_user(event["owner_id"])
-    embed = discord.Embed(color=owner.color, title=event["title"], description=event["description"])
-    embed.add_field(name="Date Information", value=f"Current date:{db.calc_time_day_str(event["current_event_date"],owner.id)}, Next date:{db.calc_time_day_str(event["next_date"],owner.id)}, End date:{db.calc_time_day_str(event["event_end"],owner.id)}")
-    embed.add_field(name="Participants", value=event["participants"])
-    embed.set_thumbnail(owner.display_avatar)
     channel = client.fetch_channel(event["channel_id"])
-    await channel.send(content=event["participants"], embed=embed)
+    if (event["next_date"] == str(current_date_processing.date())):
+        scheduler.add_job(func=lambda: run(process_event(event[db.event_data_index.event_id.value])), trigger=DateTrigger(run_date=datetime.fromisoformat(event[db.event_data_index.event_date.value]), timezone=pytz("UTC")), misfire_grace_time=None)
+    await channel.send(content=event["participants"])
 
 async def event_info_embed(event_id:str, process_event:bool):
     event = None
@@ -620,7 +659,22 @@ async def event_info_embed(event_id:str, process_event:bool):
     embed.add_field(name="Participants", value=event["participants"])
     embed.set_thumbnail(owner.display_avatar)
     view = View()
+    view.add_item(ui.event_button(event_id=event_id))
     
+@client.tree.command(name="get_events", description="Get all events that are scheduled from this guild")
+async def get_events(interaction:discord.Interaction):
+    guild_id = interaction.guild_id
+    events = await db.get_events_by_guild(guild_id=guild_id)
+    text = ""
+    for event in events:
+        text += "Event name: " + str(event[db.event_data_index.event_name.value]) + "\n  Date: "+str(event[db.event_data_index.event_date.value]) + "\n  Event id: " + str(event[db.event_data_index.event_id.value]) + "\n"
+        text += "\n"
+    embed = discord.Embed()
+    embed.title = interaction.guild.name
+    embed.description = "List of events in UTC time"
+    embed.add_field(name="Events", value=text)
+    await interaction.response.send_message(embed=embed)
 
 #Runs the bot token
 client.run(token)
+

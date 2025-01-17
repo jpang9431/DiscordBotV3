@@ -8,7 +8,7 @@ import dateutil
 import yfinance as yf
 from enum import Enum
 from dotenv import load_dotenv 
-import uuid
+
 
 #Enum to get the index of a value from the tag table assuming that you are getting the entire row
 class label_index(Enum):
@@ -146,7 +146,7 @@ async def create_repository():
     cursor.execute("CREATE TABLE IF NOT EXISTS users(id INT PRIMARY KEY, points REAL, stock_value REAL, total REAL, username TEXT, placement INT, time_offset TEXT)")
     cursor.execute("CREATE TABLE IF NOT EXISTS stocks(id INT PRIMARY KEY, stock_dicts TEXT, transactions TEXT)")
     global_cursor.execute("CREATE TABLE IF NOT EXISTS global_data(leaderboard TEXT, users INT, lastUpdate TEXT)")
-    global_cursor.execute("CREATE TABLE IF NOT EXISTS events(event_id TEXT PRIMARY KEY, event_date TEXT, event_name TEXT, event_description TEXT, end_date TEXT, next_repeat TEXT, guild_id INT, channel_id INT, owner_id INT, participants TEXT)")
+    global_cursor.execute("CREATE TABLE IF NOT EXISTS event_data(event_id TEXT PRIMARY KEY, event_date TEXT, event_name TEXT, event_description TEXT, end_date TEXT, next_repeat TEXT, guild_id INT, channel_id INT, owner_id INT, participants TEXT)")
     global_cursor.execute("SELECT * FROM global_data")
     if(global_cursor.fetchone() is None):   
         global_cursor.execute("INSERT INTO global_data VALUES(?,?,?)",("",0,str(datetime.now())))
@@ -295,14 +295,14 @@ async def get_event_data_dict(event_id:str):
         return "Event not found"
     else:
         event_data = {
-                "event_id":data[event_data_index.event_id],
-                "guild_id":data[event_data_index.guild_id],
-                "channel_id":data[event_data_index.channel_id],
-                "owner_id":data[event_data_index.owner_id],
-                "participants":''.join(json.loads(data[event_data_index.participants])),
-                "event_end":data[event_data_index.event_name],
-                "current_event_date":data[event_data_index.event_date],
-                "description":data[event_data_index.event_descrption]
+                "event_id":data[event_data_index.event_id.value],
+                "guild_id":data[event_data_index.guild_id.value],
+                "channel_id":data[event_data_index.channel_id.value],
+                "owner_id":data[event_data_index.owner_id.value],
+                "participants":''.join(json.loads(data[event_data_index.participants.value])),
+                "event_end":data[event_data_index.event_name.value],
+                "current_event_date":data[event_data_index.event_date.value],
+                "description":data[event_data_index.event_descrption.value]
             }
         event_end = datetime.fromisoformat(event_data["event_end"])
         next_date:datetime = calc_next_time(datetime.fromisoformat())
@@ -330,15 +330,15 @@ async def process_event(event_id:str):
         return "Event not found"
     else:
         event_data = {
-            "event_id":data[event_data_index.event_id],
-            "guild_id":data[event_data_index.guild_id],
-            "channel_id":data[event_data_index.channel_id],
-            "owner_id":data[event_data_index.owner_id],
-            "participants":''.join(json.loads(data[event_data_index.participants])),
-            "title":data[event_data_index.event_name],
-            "event_end":data[event_data_index.event_name],
-            "current_event_date":data[event_data_index.event_date],
-            "description":data[event_data_index.event_descrption]
+            "event_id":data[event_data_index.event_id.value],
+            "guild_id":data[event_data_index.guild_id.value],
+            "channel_id":data[event_data_index.channel_id.value],
+            "owner_id":data[event_data_index.owner_id.value],
+            "participants":''.join(json.loads(data[event_data_index.participants.value])),
+            "title":data[event_data_index.event_name.value],
+            "event_end":data[event_data_index.event_name.value],
+            "current_event_date":data[event_data_index.event_date.value],
+            "description":data[event_data_index.event_descrption.value]
         }
         event_end = datetime.fromisoformat(event_data["event_end"])
         next_date:datetime = calc_next_time(datetime.fromisoformat())
@@ -350,6 +350,19 @@ async def process_event(event_id:str):
             event_data["next_date"] = "None"
             global_cursor.execute("DELETE FROM event_data WHERE event_id = ?", (event_data["event_id"],))
         return event_data
+    
+#Get the events that occur on a specific date
+async def get_events_by_date(date:datetime):
+    date_str = '%'+str(date)
+    global_cursor.execute("SELECT * FROM event_data WHERE event_date LIKE ?", (date_str,))
+    events = global_cursor.fetchall()
+    return events
+
+#Get all events that were created in a specififed guild
+async def get_events_by_guild(guild_id:int):
+    global_cursor.execute("SELECT * FROM event_data WHERE guild_id = ? ORDER BY event_date ASC", (guild_id,))
+    events = global_cursor.fetchall()
+    return events 
 
 async def calc_next_time(date:str, time_diff:str):
     date_datetime = datetime.fromisoformat(date)
@@ -365,7 +378,7 @@ async def update_user_time_offest(id:int, hours:int, minutes:int):
 
 #Get the time offset of a user, returns the delta time which is the different between UTC and local time
 async def get_time_offset(id:int):
-    cursor.execute("SELECT time_offset WHERE id=?",(id,))
+    cursor.execute("SELECT time_offset FROM users WHERE id=?",(id,))
     deltatime = cursor.fetchone()
     if (deltatime is None):
         return None
@@ -385,15 +398,16 @@ async def calc_time_day(date_time:datetime,user_id:int):
 #Check if the date is past the current date
 async def check_future(date_time:datetime):
     today = datetime.now(tz=timezone.utc)
-    return date_time>today
+    print(type(today))
+    return date_time.timestamp()>today.timestamp()
 
 #Add an event to the event database
 #Date is the date/time of the first instance of the event in ISO 8601 format
 #Title is the title of the event, and descpriton is the descpriton of the event
 #Repeats is the number of itmes is repeats, 
-async def add_event(date:str, title:str, description:str, end_date:str, next_repeat:str, guild:int, channel:int, owner:str):
+async def add_event(date:str, title:str, description:str, end_date:str, next_repeat:str, guild:int, channel:int, owner:str, event_id:str):
     participants = [f"<@{owner}>"]
-    global_cursor.execute("INSERT INTO event_data VALUES(?,?,?,?,?,?,?,?,?)",(uuid.uuid4(),date,title,description,end_date,next_repeat,guild,channel,owner,json.dumps(participants)))
+    global_cursor.execute("INSERT INTO event_data VALUES(?,?,?,?,?,?,?,?,?,?)",(event_id,date,title,description,end_date,next_repeat,guild,channel,owner,json.dumps(participants)))
     global_connection.commit()
     return "done"
 
@@ -410,7 +424,7 @@ async def add_Participant(event_id:str, new_participant:int):
     if (event == None):
         return "Event not found"
     else:
-        participants = json.loads(event[event_data_index.participants])
+        participants = json.loads(event[event_data_index.participants.value])
         if (new_participant in participants):
             return "You are already a participant of this event"
         else:
