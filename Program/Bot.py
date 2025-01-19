@@ -31,16 +31,15 @@ import pytz
 from datetime import timedelta
 import asyncio
 from apscheduler.schedulers.background import BackgroundScheduler
-import pytz
 import uuid
 from asyncio import run
 from apscheduler.triggers.date import DateTrigger
 
 #All the event scheulding variables 
-now = datetime.now()
+now = datetime.now(tz=pytz.timezone("UTC"))
 current_date_processing:datetime = datetime(year=now.year, month=now.month, day=now.day, hour=23, tzinfo=pytz.timezone("UTC"))
 next_date = timedelta(days=1)
-scheduler = BackgroundScheduler()
+scheduler = BackgroundScheduler({'apscheduler.timezone': 'UTC'})
 
 
 #Home directory is the directory to the DiscordBotV3 folder + /
@@ -80,6 +79,8 @@ currentlyProcessing = False
 #List of command interactions that are waiting for a presence update from a user
 presenceUpate = {}
 
+
+loop = None
 class totally_not_a_gambling_bot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix='!', intents=discord.Intents.all())
@@ -94,16 +95,15 @@ class totally_not_a_gambling_bot(commands.Bot):
         synced = await self.tree.sync()
         print(len(synced))
         await db.update_leader_board()
-        await update_leader_board_interval()
-        await add_events()
-
+        global loop
+        loop = asyncio.get_running_loop()
+        #await add_events()
+        scheduler.start()
+        print(scheduler.timezone)
+        print(scheduler.state)
+        print(scheduler.running)
+        
 client = totally_not_a_gambling_bot()
-
-#Set up the leaderboard to update at ceratin periods of time
-async def update_leader_board_interval():
-    while True:
-        await db.update_leader_board()
-        await asyncio.sleep(3600)
     
 #Handle the bot being added to a new guild
 async def add_guild(guild):
@@ -564,7 +564,9 @@ async def set_timediff(interaction:discord.Interaction, hours:int, minutes:int):
     else:
         await db.update_user_time_offest(interaction.user.id, hours, minutes)
         await interaction.response.send_message("Done", ephemeral=True)
-    
+
+def run_process_event(event_id):
+    asyncio.run_coroutine_threadsafe(process_event(event_id), loop)  
 
 #Create an event
 @client.tree.command(name="create_event",description="Create an event that will occur in the future")
@@ -603,7 +605,7 @@ async def create_event(interaction:discord.Interaction,channel_id:str,title:str,
         return
     future = await db.check_future(date)
     if (not future):
-        await interaction.response.send_message("Enter a date that is in the future", ephemeral=True)
+        await interaction.response.send_message("Enter a date/time that is in the future", ephemeral=True)
     else:
         if (not next_repeat == ""):
             try:
@@ -624,27 +626,26 @@ async def create_event(interaction:discord.Interaction,channel_id:str,title:str,
         await interaction.response.send_message("The event was added sucessfully", ephemeral=True)
         event_id = str(uuid.uuid4())
         await db.add_event(date=date.isoformat(sep="T", timespec="auto"), title=title, description=description, end_date=end_date, next_repeat=next_repeat, guild=interaction.guild.id, channel=channel_id, event_id=event_id, owner=interaction.user.id)
-        if (str(date.date)==str(current_date_processing.date) or str(date.date)==str((current_date_processing-next_date).date)):
+        if (str(date.date())==str(current_date_processing.date()) or str(date.date())==str((current_date_processing-next_date).date())):
             if (scheduler.get_job(str(event_id))==None):
-                scheduler.add_job(func=lambda: run(process_event(event_id)), trigger=DateTrigger(run_date=date, timezone=pytz("UTC")), misfire_grace_time=None)
-        
+                global loop
+                scheduler.add_job(func=lambda: run_process_event(event_id=event_id), trigger=DateTrigger(run_date=date, timezone=pytz.timezone("UTC")), misfire_grace_time=None)
 
 async def add_events():
-    events = db.get_events_by_date(date=current_date_processing.date())
+    events = await db.get_events_by_date(date=current_date_processing.date())
     for event in events:
         event_id = event[db.event_data_index.event_id.value]
         if (scheduler.get_job(event_id)==None):
-            scheduler.add_job(func=lambda: run(process_event(event_id)), trigger=DateTrigger(run_date=datetime.fromisoformat(event[db.event_data_index.event_date.value]), timezone=pytz("UTC")), misfire_grace_time=None)
-    scheduler.add_job(func=lambda: run(add_events()), trigger=DateTrigger(run_date=current_date_processing, timezone=pytz("UTC")), misfire_grace_time=None)
+            scheduler.add_job(func=lambda: run_process_event(event_id=event_id), trigger=DateTrigger(run_date=datetime.fromisoformat(event[db.event_data_index.event_date.value]), timezone=pytz.timezone("UTC")), misfire_grace_time=None)
+    scheduler.add_job(func=lambda: run(add_events()), trigger=DateTrigger(run_date=current_date_processing, timezone=pytz.timezone("UTC")), misfire_grace_time=None)
     current_date_processing = current_date_processing + next_date
     scheduler.print_jobs()
 
-
 async def process_event(event_id:str):
-    event = db.process_event(event_id=event_id)
-    channel = client.fetch_channel(event["channel_id"])
+    event = await db.process_event(event_id=event_id)
+    channel = await client.fetch_channel(event["channel_id"])
     if (event["next_date"] == str(current_date_processing.date())):
-        scheduler.add_job(func=lambda: run(process_event(event[db.event_data_index.event_id.value])), trigger=DateTrigger(run_date=datetime.fromisoformat(event[db.event_data_index.event_date.value]), timezone=pytz("UTC")), misfire_grace_time=None)
+        scheduler.add_job(func=lambda: run_process_event(event_id=event_id), trigger=DateTrigger(run_date=datetime.fromisoformat(event[db.event_data_index.event_date.value]), timezone=pytz.timezone("UTC")), misfire_grace_time=None)
     await channel.send(content=event["participants"])
 
 async def event_info_embed(event_id:str, process_event:bool):

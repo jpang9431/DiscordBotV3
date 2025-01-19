@@ -45,9 +45,9 @@ file_data = json.load(config)
 
 
 #Loads the database
-database = sqlite3.connect(home_directory+"Persistant_Data/user.db")
+database = sqlite3.connect(home_directory+"Persistant_Data/user.db", check_same_thread=False)
 cursor = database.cursor()
-global_connection = sqlite3.connect(home_directory+"Persistant_Data/global.db")
+global_connection = sqlite3.connect(home_directory+"Persistant_Data/global.db", check_same_thread=False)
 global_cursor = global_connection.cursor()
 
 #Amount of time for cooldown in days
@@ -336,16 +336,20 @@ async def process_event(event_id:str):
             "owner_id":data[event_data_index.owner_id.value],
             "participants":''.join(json.loads(data[event_data_index.participants.value])),
             "title":data[event_data_index.event_name.value],
-            "event_end":data[event_data_index.event_name.value],
+            "event_end":data[event_data_index.end_date.value],
             "current_event_date":data[event_data_index.event_date.value],
             "description":data[event_data_index.event_descrption.value]
         }
-        event_end = datetime.fromisoformat(event_data["event_end"])
-        next_date:datetime = calc_next_time(datetime.fromisoformat())
-        if (next_date<event_end):
-            event_data["next_date"] = next_date.isoformat("YYYY-MM-DD HH:MM", "T")
-            global_cursor.execute("UPDATE event_data SET event_date = ? WHERE event_id = ?", (event_data["next_date"], event_data["event_id"]))
-            global_connection.commit()
+        if (not event_data["event_end"]==""):
+            event_end = datetime.fromisoformat(event_data["event_end"])
+            next_date:datetime = calc_next_time(datetime.fromisoformat())
+            if (next_date<event_end):
+                event_data["next_date"] = next_date.isoformat("YYYY-MM-DD HH:MM", "T")
+                global_cursor.execute("UPDATE event_data SET event_date = ? WHERE event_id = ?", (event_data["next_date"], event_data["event_id"]))
+                global_connection.commit()
+            else:
+                event_data["next_date"] = "None"
+                global_cursor.execute("DELETE FROM event_data WHERE event_id = ?", (event_data["event_id"],))
         else:
             event_data["next_date"] = "None"
             global_cursor.execute("DELETE FROM event_data WHERE event_id = ?", (event_data["event_id"],))
@@ -398,7 +402,6 @@ async def calc_time_day(date_time:datetime,user_id:int):
 #Check if the date is past the current date
 async def check_future(date_time:datetime):
     today = datetime.now(tz=timezone.utc)
-    print(type(today))
     return date_time.timestamp()>today.timestamp()
 
 #Add an event to the event database
