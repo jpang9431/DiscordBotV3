@@ -453,5 +453,11 @@ class event_button(discord.ui.DynamicItem[discord.ui.Button], template=r'button:
     async def callback(self, interaction:discord.Interaction):
         user = interaction.user
         result = await db.add_Participant(self.event_id, user.id)
+        print(result)
         await interaction.response.send_message(content=result, ephemeral=True)
 
+async def event_embed_and_view(embed:discord.Embed, view:View, event):
+    embed.title = event["title"] + " | " + event["event_id"]
+    embed.add_field(name="Date Information", value="Date: " + event["current_event_date"] + "\nNext Date: " + event["next_date"] +"\nEnd Date: " + event["event_end"], inline=False)
+    embed.add_field(name="Description", value=event["description"], inline=False)
+    view.add_item(event_button(event["event_id"]))

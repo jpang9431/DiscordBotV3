@@ -300,14 +300,18 @@ async def get_event_data_dict(event_id:str):
                 "channel_id":data[event_data_index.channel_id.value],
                 "owner_id":data[event_data_index.owner_id.value],
                 "participants":''.join(json.loads(data[event_data_index.participants.value])),
-                "event_end":data[event_data_index.event_name.value],
+                "event_end":data[event_data_index.end_date.value],
                 "current_event_date":data[event_data_index.event_date.value],
-                "description":data[event_data_index.event_descrption.value]
+                "description":data[event_data_index.event_descrption.value],
+                "title":data[event_data_index.event_name.value]
             }
-        event_end = datetime.fromisoformat(event_data["event_end"])
-        next_date:datetime = calc_next_time(datetime.fromisoformat())
-        if (next_date<event_end):
-            event_data["next_date"] = next_date.isoformat("YYYY-MM-DD HH:MM", "T")
+        if (not event_data["event_end"]==""):
+            event_end = datetime.fromisoformat(event_data["event_end"])
+            next_date:datetime = calc_next_time(datetime.fromisoformat())
+            if (next_date<event_end):
+                event_data["next_date"] = next_date.isoformat("YYYY-MM-DD HH:MM", "T")
+            else:
+                event_data["next_date"] = "None"
         else:
             event_data["next_date"] = "None"
         return event_data
@@ -329,17 +333,7 @@ async def process_event(event_id:str):
     if (data == None):
         return "Event not found"
     else:
-        event_data = {
-            "event_id":data[event_data_index.event_id.value],
-            "guild_id":data[event_data_index.guild_id.value],
-            "channel_id":data[event_data_index.channel_id.value],
-            "owner_id":data[event_data_index.owner_id.value],
-            "participants":''.join(json.loads(data[event_data_index.participants.value])),
-            "title":data[event_data_index.event_name.value],
-            "event_end":data[event_data_index.end_date.value],
-            "current_event_date":data[event_data_index.event_date.value],
-            "description":data[event_data_index.event_descrption.value]
-        }
+        event_data = await get_event_data_dict(event_id)
         if (not event_data["event_end"]==""):
             event_end = datetime.fromisoformat(event_data["event_end"])
             next_date:datetime = calc_next_time(datetime.fromisoformat())
@@ -350,9 +344,11 @@ async def process_event(event_id:str):
             else:
                 event_data["next_date"] = "None"
                 global_cursor.execute("DELETE FROM event_data WHERE event_id = ?", (event_data["event_id"],))
+                global_connection.commit()
         else:
             event_data["next_date"] = "None"
             global_cursor.execute("DELETE FROM event_data WHERE event_id = ?", (event_data["event_id"],))
+            global_connection.commit()
         return event_data
     
 #Get the events that occur on a specific date
@@ -435,8 +431,9 @@ async def add_Participant(event_id:str, new_participant:int):
             if (len(participants)>48):
                 return "Too many participant the max number of users is 48"
             else:
-                global_cursor.execute("UPDATE events SET participants = ? WHERE event_id = ?", (json.dump(participants),event_id))
+                global_cursor.execute("UPDATE event_data SET participants = ? WHERE event_id = ?", (json.dumps(participants),event_id))
                 global_connection.commit()
+                return "Sucesfully added"
                 
 #Update the stocks a user has
 async def update_stock(id:int, stock_dict, action:str, amount:int):
@@ -543,3 +540,8 @@ async def coin_flip(user:int, bet:int, choice:str):
     return choice==win_choice
         
 
+#Get all events
+async def get_all_events():
+    global_cursor.execute("SELECT event_id, event_date FROM event_data")
+    events = global_cursor.fetchall()
+    return events

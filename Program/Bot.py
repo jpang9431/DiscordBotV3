@@ -97,11 +97,9 @@ class totally_not_a_gambling_bot(commands.Bot):
         await db.update_leader_board()
         global loop
         loop = asyncio.get_running_loop()
-        #await add_events()
+        await add_events()
         scheduler.start()
-        print(scheduler.timezone)
-        print(scheduler.state)
-        print(scheduler.running)
+        
         
 client = totally_not_a_gambling_bot()
     
@@ -632,21 +630,29 @@ async def create_event(interaction:discord.Interaction,channel_id:str,title:str,
                 scheduler.add_job(func=lambda: run_process_event(event_id=event_id), trigger=DateTrigger(run_date=date, timezone=pytz.timezone("UTC")), misfire_grace_time=None)
 
 async def add_events():
-    events = await db.get_events_by_date(date=current_date_processing.date())
-    for event in events:
-        event_id = event[db.event_data_index.event_id.value]
-        if (scheduler.get_job(event_id)==None):
-            scheduler.add_job(func=lambda: run_process_event(event_id=event_id), trigger=DateTrigger(run_date=datetime.fromisoformat(event[db.event_data_index.event_date.value]), timezone=pytz.timezone("UTC")), misfire_grace_time=None)
-    scheduler.add_job(func=lambda: run(add_events()), trigger=DateTrigger(run_date=current_date_processing, timezone=pytz.timezone("UTC")), misfire_grace_time=None)
-    current_date_processing = current_date_processing + next_date
-    scheduler.print_jobs()
+    all_events = await db.get_all_events()
+    twomorrow = current_date_processing + next_date
+    twomorrow_timestamp = twomorrow.timestamp()
+    current_time = datetime.now(tz=pytz.timezone("UTC")).timestamp()
+    for event in all_events:
+        event_date = datetime.fromisoformat(event[1])
+        date_timestamp = event_date.timestamp()
+        if (date_timestamp<=current_time):
+            process_event(event[1])
+        elif (date_timestamp<=twomorrow_timestamp and scheduler.get_job(event[0]) == None):
+            scheduler.add_job(func=lambda: run_process_event(event_id=event[0]), trigger=DateTrigger(run_date=event_date, timezone=pytz.timezone("UTC")), misfire_grace_time=None)
+            print(event[0])
+        
 
 async def process_event(event_id:str):
     event = await db.process_event(event_id=event_id)
     channel = await client.fetch_channel(event["channel_id"])
     if (event["next_date"] == str(current_date_processing.date())):
         scheduler.add_job(func=lambda: run_process_event(event_id=event_id), trigger=DateTrigger(run_date=datetime.fromisoformat(event[db.event_data_index.event_date.value]), timezone=pytz.timezone("UTC")), misfire_grace_time=None)
-    await channel.send(content=event["participants"])
+    embed = discord.Embed()
+    view = View()
+    await ui.event_embed_and_view(embed=embed, view=view, event=event)
+    await channel.send(content=event["participants"], embed=embed, view=view)
 
 async def event_info_embed(event_id:str, process_event:bool):
     event = None
@@ -654,7 +660,7 @@ async def event_info_embed(event_id:str, process_event:bool):
         event = await db.process_event(event_id=event_id)
     else:
         event = await db.get_event_data_dict(event_id=event_id)
-    owner:discord.User = client.fetch_user(event["owner_id"])
+    owner:discord.User = await client.fetch_user(event["owner_id"])
     embed = discord.Embed(color=owner.color, title=event["title"], description=event["description"])
     embed.add_field(name="Date Information", value=f"Current date:{db.calc_time_day_str(event["current_event_date"],owner.id)}, Next date:{db.calc_time_day_str(event["next_date"],owner.id)}, End date:{db.calc_time_day_str(event["event_end"],owner.id)}")
     embed.add_field(name="Participants", value=event["participants"])
@@ -675,6 +681,15 @@ async def get_events(interaction:discord.Interaction):
     embed.description = "List of events in UTC time"
     embed.add_field(name="Events", value=text)
     await interaction.response.send_message(embed=embed)
+    
+@client.tree.command(name="get_event", description="Get full details about an event")
+@app_commands.describe(event_id="The id of the event")
+async def get_event(interaction:discord.Interaction, event_id:str):
+    event = await db.get_event_data_dict(event_id) 
+    embed = discord.Embed()
+    view = View()
+    await ui.event_embed_and_view(embed=embed, view=view, event=event)
+    await interaction.response.send_message(embed=embed, view=view)
 
 #Runs the bot token
 client.run(token)
